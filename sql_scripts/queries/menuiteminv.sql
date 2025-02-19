@@ -1,5 +1,5 @@
 /*
-3. Menu Item Inventory
+Menu Item Inventory
 */
 SELECT
     i.name,

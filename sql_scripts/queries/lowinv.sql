@@ -1,5 +1,5 @@
 /*
-5. Low Inventory Level
+Low Inventory Level
 */
 SELECT 
     (id,

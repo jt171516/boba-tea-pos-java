@@ -1,5 +1,5 @@
 /*
-2. Peak Sales Day
+Peak Sales Day
 */
 SELECT SUM(totalprice)
 FROM(

@@ -1,5 +1,5 @@
 /*
-4. Best of the Worst
+Best of the Worst
 */
 SELECT 
     DATE(timestamp) AS lowSaleDate, 
