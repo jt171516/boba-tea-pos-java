@@ -1,3 +1,4 @@
+import java.awt.*;
 import java.sql.*;
 import java.awt.event.*;
 import javax.swing.*;
@@ -9,7 +10,6 @@ import javax.swing.*;
   3) Create a JTextArea object using the queried data
   4) Add the new object to the JPanel p
 */
-
 public class GUI extends JFrame implements ActionListener {
     static JFrame f;
 
@@ -20,9 +20,9 @@ public class GUI extends JFrame implements ActionListener {
       //TODO STEP 1 (see line 7)
       String database_name = "team_11_db";
       String database_url = "jdbc:postgresql://csce-315-db.engr.tamu.edu/" + database_name;
-      dbSetup myCredentials = new dbSetup();
+      login myCredentials = new login();
         try {
-        conn = DriverManager.getConnection(database_url, dbSetup.user, dbSetup.pswd);
+        conn = DriverManager.getConnection(database_url, login.user, login.pswd);
       } catch (Exception e) {
         e.printStackTrace();
         System.err.println(e.getClass().getName()+": "+e.getMessage());
