@@ -19,9 +19,11 @@ public class GUI extends JFrame implements ActionListener {
     private JScrollPane menuItemsScroll;  
     private JTextArea orderArea;
     private JButton submitOrderButton;
-
     //close button
     private JButton closeButton;
+
+    //MANAGER PANEL
+    private JPanel managerPanel;
 
     public static void main(String[] args) 
     {
@@ -39,13 +41,17 @@ public class GUI extends JFrame implements ActionListener {
       setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
       setSize(1000, 700);
 
-      //initialize panel
+      //initialize panel 
       tabbedPane = new JTabbedPane();
       add(tabbedPane, BorderLayout.CENTER);
 
       //cashier panel
       buildCashierPanel();
       tabbedPane.addTab("Cashier", cashierPanel);
+
+      //manager panel
+      buildManagerPanel();
+      tabbedPane.addTab("Manager", managerPanel);
 
       //exit button
       closeButton = new JButton("Close");
@@ -95,6 +101,80 @@ public class GUI extends JFrame implements ActionListener {
         loadAllMenuItemsForCashier();
         
     }
+    private void buildManagerPanel()  
+    {
+      managerPanel = new JPanel(new BorderLayout(10, 10));
+      managerPanel.setBorder(new EmptyBorder(10, 10, 10, 10));
+
+      JPanel topPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+      JLabel revenueLabel = new JLabel("Revenue:");
+      
+      JComboBox<String> productComboBox = new JComboBox<>(new String[] {"All Products", "Item 1", "Item 2"});
+      
+      JComboBox<String> timeRangeComboBox = new JComboBox<>(new String[] {"1 Week", "1 Month", "3 Months"});
+      
+      topPanel.add(revenueLabel);
+      topPanel.add(productComboBox);
+      topPanel.add(timeRangeComboBox);
+
+      // === CENTER PANEL ===
+      JPanel chartPanel = new JPanel() {
+          @Override
+          protected void paintComponent(Graphics g) {
+              super.paintComponent(g);
+              // Simple placeholder line graph:
+              g.drawLine(20, getHeight() - 20, getWidth() - 20, 20);
+          }
+      };
+      chartPanel.setPreferredSize(new Dimension(800, 200));
+      chartPanel.setBorder(BorderFactory.createTitledBorder("Revenue Chart"));
+
+      // We'll put Inventory on the left, Orders on the right.
+      JPanel bottomPanel = new JPanel(new GridLayout(1, 2, 10, 10));
+
+      // ----- Left :Inventory -----
+      // Example table data
+      String[] inventoryColumns = {"Product", "Stock", "Sales", "Status"};
+      Object[][] inventoryData = {
+          {"Item 1", 100, 1400, "Refill Recommended"},
+          {"Item 2", 200, 1000, "Refill Recommended"},
+          {"Item 3", 200, 700,  "Refill Recommended"},
+          {"Item 4", 500, 200,  ""}
+      };
+
+      JTable inventoryTable = new JTable(inventoryData, inventoryColumns);
+      JScrollPane inventoryScrollPane = new JScrollPane(inventoryTable);
+
+      // We can wrap the table in a panel with a title
+      JPanel inventoryPanel = new JPanel(new BorderLayout());
+      inventoryPanel.setBorder(BorderFactory.createTitledBorder("Inventory"));
+      inventoryPanel.add(inventoryScrollPane, BorderLayout.CENTER);
+
+      // ----- Right: Orders -----
+      String[] ordersColumns = {"Product", "Order #", "Quantity", "Arrival"};
+      Object[][] ordersData = {
+          {"Item 5", "#11111", 1000, "2/10/25"},
+          {"Item 6", "#11111", 1000, "2/10/25"},
+          {"Item 7", "#22222", 500,  "2/15/25"},
+          {"Item 8", "#22222", 500,  "2/15/25"}
+      };
+
+      JTable ordersTable = new JTable(ordersData, ordersColumns);
+      JScrollPane ordersScrollPane = new JScrollPane(ordersTable);
+
+      JPanel ordersPanel = new JPanel(new BorderLayout());
+      ordersPanel.setBorder(BorderFactory.createTitledBorder("Orders"));
+      ordersPanel.add(ordersScrollPane, BorderLayout.CENTER);
+
+      // Add both sub-panels to bottomPanel
+      bottomPanel.add(inventoryPanel);
+      bottomPanel.add(ordersPanel);
+
+      // === ASSEMBLE EVERYTHING ===
+      managerPanel.add(topPanel, BorderLayout.NORTH);
+      managerPanel.add(chartPanel, BorderLayout.CENTER);
+      managerPanel.add(bottomPanel, BorderLayout.SOUTH);
+  }
     private void loadAllMenuItemsForCashier() 
     {
       if (conn == null) 
@@ -130,7 +210,6 @@ public class GUI extends JFrame implements ActionListener {
         JOptionPane.showMessageDialog(this, "LOADING MENU ITEMS ERROR sad " + e.getMessage());
       }
     }
-
     private void searchMenuItemsForCashier(String query)
     {
 
@@ -157,6 +236,57 @@ public class GUI extends JFrame implements ActionListener {
                     loadAllMenuItemsForCashier();
                 }
                 break;
+            case "Submit Order":
+            String orderText = orderArea.getText().trim();
+            if (orderText.isEmpty()) 
+            {
+                JOptionPane.showMessageDialog(this, "no order to submit!!!!");
+            } 
+            else 
+            {
+                String[] lines = orderText.split("\\n");
+                double totalPrice = 0.0;
+                StringBuilder orderItems = new StringBuilder();
+
+                for (String line : lines)
+                {
+                  String[] parts = line.split(" - \\$");
+                  if (parts.length == 2) 
+                  {
+                    String itemName = parts[0].trim();
+                    double price = 0.0;
+                    try 
+                    {
+                        price = Double.parseDouble(parts[1].trim());
+                    } catch (NumberFormatException numberFormatIssue) 
+                    {
+                        continue;
+                    }
+                    totalPrice += price;
+                    if (orderItems.length() > 0) 
+                    {
+                        orderItems.append(", ");
+                    }
+                    orderItems.append(itemName);
+                  }
+                }
+              try
+              {
+                String sql = "INSERT INTO Orders (name, totalprice, timestamp) VALUES (?, ?, CURRENT_TIMESTAMP)";
+                PreparedStatement pStatement = conn.prepareStatement(sql);
+                pStatement.setString(1, orderItems.toString());
+                pStatement.setDouble(2, totalPrice);
+                pStatement.executeUpdate();
+                pStatement.close();
+                JOptionPane.showMessageDialog(this, "order submitted!\n" + "items: " + orderItems.toString() + "\ntotal price: $" + totalPrice);
+                orderArea.setText("");
+              }
+              catch(Exception e1)
+              {
+                JOptionPane.showMessageDialog(this, "submitting order failed sad " + e1.getMessage());
+              }
+            }
+                
             default:
                 break;
           }
