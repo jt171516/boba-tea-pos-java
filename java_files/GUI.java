@@ -2,6 +2,7 @@ import java.sql.*;
 import java.awt.event.*;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
+import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 
 public class GUI extends JFrame implements ActionListener {
@@ -174,7 +175,22 @@ public class GUI extends JFrame implements ActionListener {
       managerPanel.add(topPanel, BorderLayout.NORTH);
       managerPanel.add(chartPanel, BorderLayout.CENTER);
       managerPanel.add(bottomPanel, BorderLayout.SOUTH);
+
+      //sales report panel for manager panel
+      JComboBox<String> weekComboBox = new JComboBox<>(new String[]{"1", "2", "3", "4", "5"});
+      JButton salesReportButton = new JButton("Show Weekly Sales");
+
+      //add event listener to fetch sales data for the selected week
+      salesReportButton.addActionListener(evt -> {
+          int selectedWeek = Integer.parseInt((String) weekComboBox.getSelectedItem());
+          weeklySalesReport(selectedWeek);
+      });
+
+      topPanel.add(new JLabel("Select Week:"));
+      topPanel.add(weekComboBox);
+      topPanel.add(salesReportButton);
   }
+
     private void loadAllMenuItemsForCashier() 
     {
       if (conn == null) 
@@ -239,6 +255,80 @@ public class GUI extends JFrame implements ActionListener {
         JOptionPane.showMessageDialog(this, "Searching menu items error" + e.getMessage());
       }
 
+    }
+
+    private JPanel salesReportPanel = null;
+    private void weeklySalesReport(int week)
+    {
+        if (conn == null)
+        {
+            return;
+        }
+
+        //sql query to fetch the weekly order count
+        String sql = "SELECT orderCount FROM (" +
+                "SELECT COUNT(id) AS orderCount, EXTRACT(WEEK FROM timestamp) AS week " +
+                "FROM orders GROUP BY week) AS ordersInWeek " +
+                "WHERE week = ?";
+
+        //add table header
+        DefaultTableModel model = new DefaultTableModel(new String[]{"Orders in Week " + week}, 0);
+
+        try (PreparedStatement weeklyStmt = conn.prepareStatement(sql))
+        {
+            weeklyStmt.setInt(1, week);
+            ResultSet result = weeklyStmt.executeQuery();
+
+            while (result.next())
+            {
+                model.addRow(new Object[]{result.getInt("orderCount")});
+            }
+            result.close();
+        }
+        catch (SQLException e)
+        {
+            e.printStackTrace();
+            JOptionPane.showMessageDialog(this, "Error executing query: " + e.getMessage());
+            return;
+        }
+
+        if (salesReportPanel != null)
+        {
+            managerPanel.remove(salesReportPanel);
+        }
+
+        //create panel for the sales report
+        salesReportPanel = new JPanel(new BorderLayout());
+        JTable salesTable = new JTable(model);
+        JScrollPane salesScrollPane = new JScrollPane(salesTable);
+
+        //create close sales report button
+        JButton closeButton = new JButton("X");
+        closeButton.setPreferredSize(new Dimension(50, 15));
+
+        //add event listener to close sales report panel once button is selected
+        closeButton.addActionListener(e -> {
+            managerPanel.remove(salesReportPanel);
+            salesReportPanel = null;
+            managerPanel.revalidate();
+            managerPanel.repaint();
+        });
+
+        //button panel layout and styling
+        JPanel buttonPanel = new JPanel(new BorderLayout());
+        buttonPanel.add(closeButton, BorderLayout.EAST);
+
+        //sales panel layout and styling
+        salesReportPanel.setBorder(BorderFactory.createTitledBorder("Weekly Sales Report"));
+        salesReportPanel.add(salesScrollPane, BorderLayout.CENTER);
+        salesReportPanel.add(buttonPanel, BorderLayout.NORTH);
+
+        //add the updated sales report panel to the right side of the manager panel
+        managerPanel.add(salesReportPanel, BorderLayout.EAST);
+
+        //refresh the panel properly
+        managerPanel.revalidate();
+        managerPanel.repaint();
     }
 
     //action listener
