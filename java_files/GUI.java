@@ -19,11 +19,10 @@ public class GUI extends JFrame implements ActionListener {
       Connection conn = null;
       //TODO STEP 1 (see line 7)
       String database_name = "team_11_db";
-      String database_user = "team_11";
-      String database_password = "";
-      String database_url = String.format("jdbc:postgresql://csce-315-db.engr.tamu.edu/%s", database_name);
-      try {
-        conn = DriverManager.getConnection(database_url, database_user, database_password);
+      String database_url = "jdbc:postgresql://csce-315-db.engr.tamu.edu/" + database_name;
+      dbSetup myCredentials = new dbSetup();
+        try {
+        conn = DriverManager.getConnection(database_url, dbSetup.user, dbSetup.pswd);
       } catch (Exception e) {
         e.printStackTrace();
         System.err.println(e.getClass().getName()+": "+e.getMessage());
@@ -37,7 +36,7 @@ public class GUI extends JFrame implements ActionListener {
         Statement stmt = conn.createStatement();
         //create a SQL statement
         //TODO Step 2 (see line 8)
-        String sqlStatement = "SELECT * FROM Item";
+        String sqlStatement = "SELECT * FROM Item;";
         //send statement to DBMS
         ResultSet result = stmt.executeQuery(sqlStatement);
         while (result.next()) {
