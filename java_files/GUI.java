@@ -2,7 +2,7 @@ import java.sql.*;
 import java.awt.event.*;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
-import java.awt.BorderLayout;
+import java.awt.*;
 
 public class GUI extends JFrame implements ActionListener {
     static JFrame f;
@@ -39,6 +39,10 @@ public class GUI extends JFrame implements ActionListener {
       setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
       setSize(1000, 700);
 
+      //initialize panel
+      tabbedPane = new JTabbedPane();
+      add(tabbedPane, BorderLayout.CENTER);
+
       //cashier panel
       buildCashierPanel();
       tabbedPane.addTab("Cashier", cashierPanel);
@@ -53,9 +57,52 @@ public class GUI extends JFrame implements ActionListener {
     {
       cashierPanel = new JPanel(new BorderLayout(10, 10));
       cashierPanel.setBorder(new EmptyBorder(10, 10, 10, 10));
+
+        // top search panel
+        JPanel topPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        JLabel searchLabel = new JLabel("Search Items:");
+        searchField = new JTextField(15);
+        searchButton = new JButton("Search");
+        searchButton.addActionListener(this);
+
+        topPanel.add(searchLabel);
+        topPanel.add(searchField);
+        topPanel.add(searchButton);
+        // left = menu items, right = order area
+        JPanel centerPanel = new JPanel(new GridLayout(1, 2, 10, 10));
+        // menu items in a grid
+        menuItemsPanel = new JPanel(new GridLayout(0, 3, 10, 10));
+        menuItemsScroll = new JScrollPane(menuItemsPanel);
+
+        //order area
+        orderArea = new JTextArea();
+        orderArea.setEditable(false);
+        JScrollPane orderScroll = new JScrollPane(orderArea);
+
+        centerPanel.add(menuItemsScroll);
+        centerPanel.add(orderScroll);
+
+        // submit order
+        submitOrderButton = new JButton("Submit Order");
+        submitOrderButton.addActionListener(this);
+
+        // cashier pannel
+        cashierPanel.add(topPanel, BorderLayout.NORTH);
+        cashierPanel.add(centerPanel, BorderLayout.CENTER);
+        cashierPanel.add(submitOrderButton, BorderLayout.SOUTH);
+
+        // load menu items from DB
+        loadAllMenuItemsForCashier();
+        
     }
     private void loadAllMenuItemsForCashier() 
     {
+      if (conn == null) 
+      {
+        return;
+      }
+      //remove old menu items
+      menuItemsPanel.removeAll();
 
     }
 
@@ -94,7 +141,7 @@ public class GUI extends JFrame implements ActionListener {
     {
       String databaseName = "team_11_db";
       String databaseUser = "team_11";
-      String databasePassword = ""; 
+      String databasePassword = "bayleef93"; 
       String url = String.format("jdbc:postgresql://csce-315-db.engr.tamu.edu/%s", databaseName);
 
       try 
