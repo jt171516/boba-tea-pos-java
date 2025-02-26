@@ -1,102 +1,129 @@
 import java.sql.*;
 import java.awt.event.*;
 import javax.swing.*;
-
-/*
-  TODO:
-  1) Change credentials for your own team's database
-  2) Change SQL command to a relevant query that retrieves a small amount of data
-  3) Create a JTextArea object using the queried data
-  4) Add the new object to the JPanel p
-*/
+import javax.swing.border.EmptyBorder;
+import java.awt.BorderLayout;
 
 public class GUI extends JFrame implements ActionListener {
     static JFrame f;
 
-    public static void main(String[] args)
+    private static Connection conn = null;
+    //Tabbed Pane for manager menu
+    private JTabbedPane tabbedPane;
+
+    //CASHIER PANEL
+    private JPanel cashierPanel;
+    private JTextField searchField;
+    private JButton searchButton;
+    private JPanel menuItemsPanel;       
+    private JScrollPane menuItemsScroll;  
+    private JTextArea orderArea;
+    private JButton submitOrderButton;
+
+    //close button
+    private JButton closeButton;
+
+    public static void main(String[] args) 
     {
-      //Building the connection
-      Connection conn = null;
-      //TODO STEP 1 (see line 7)
-      String database_name = "team_11_db";
-      String database_user = "team_11";
-      String database_password = "";
-      String database_url = String.format("jdbc:postgresql://csce-315-db.engr.tamu.edu/%s", database_name);
-      try {
-        conn = DriverManager.getConnection(database_url, database_user, database_password);
-      } catch (Exception e) {
-        e.printStackTrace();
-        System.err.println(e.getClass().getName()+": "+e.getMessage());
-        System.exit(0);
-      }
-      JOptionPane.showMessageDialog(null,"Opened database successfully");
+      connectToDatabase();
+      SwingUtilities.invokeLater(() -> 
+      {
+          GUI app = new GUI();
+          app.setVisible(true);
+      });
+  }
 
-      String name = "";
-      try{
-        //create a statement object
-        Statement stmt = conn.createStatement();
-        //create a SQL statement
-        //TODO Step 2 (see line 8)
-        String sqlStatement = "SELECT * FROM Item";
-        //send statement to DBMS
-        ResultSet result = stmt.executeQuery(sqlStatement);
-        while (result.next()) {
-          // TODO you probably need to change the column name tat you are retrieving
-          //      this command gets the data from the "name" attribute
-          name += result.getString("name")+"\n";
-        }
-      } catch (Exception e){
-        JOptionPane.showMessageDialog(null,"Error accessing Database.");
-      }
-      // create a new frame
-      f = new JFrame("DB GUI");
+    public GUI()
+    {
+      super("Team 11 DB GUI");
+      setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+      setSize(1000, 700);
 
-      // create a object
-      GUI s = new GUI();
+      //cashier panel
+      buildCashierPanel();
+      tabbedPane.addTab("Cashier", cashierPanel);
 
-      // create a panel
-      JPanel p = new JPanel();
-
-      JButton b = new JButton("Close");
-
-      // add actionlistener to button
-      b.addActionListener(s);
-
-      //3) Create a JTextArea object using the queried data
-      //4) Add the new object to the JPanel p
-
-      //TODO Step 3 (see line 9)
-      JTextArea textArea = new JTextArea(name);
-
-      //TODO Step 4 (see line 10)
-      p.add(textArea);
-
-      // add button to panel
-      p.add(b);
-
-      // add panel to frame
-      f.add(p);
-
-      // set the size of frame
-      f.setSize(400, 400);
-
-      f.setVisible(true);
-
-      //closing the connection
-      try {
-        conn.close();
-        JOptionPane.showMessageDialog(null,"Connection Closed.");
-      } catch(Exception e) {
-        JOptionPane.showMessageDialog(null,"Connection NOT Closed.");
-      }
+      //exit button
+      closeButton = new JButton("Close");
+      closeButton.addActionListener(this);
+      add(closeButton, BorderLayout.SOUTH);
     }
 
-    // if button is pressed
-    public void actionPerformed(ActionEvent e)
+    private void buildCashierPanel()
     {
-        String s = e.getActionCommand();
-        if (s.equals("Close")) {
-            f.dispose();
-        }
+      cashierPanel = new JPanel(new BorderLayout(10, 10));
+      cashierPanel.setBorder(new EmptyBorder(10, 10, 10, 10));
     }
+    private void loadAllMenuItemsForCashier() 
+    {
+
+    }
+
+    private void searchMenuItemsForCashier(String query)
+    {
+
+    }
+
+    //action listener
+    @Override
+    public void actionPerformed(ActionEvent e) 
+    {
+        String cmd = e.getActionCommand();
+        switch (cmd) 
+        {
+            case "Close":
+                closeConnection();
+                dispose();
+                break;
+            case "Search":
+                String query = searchField.getText().trim();
+                if (!query.isEmpty()) 
+                {
+                    searchMenuItemsForCashier(query);
+                } else 
+                {
+                    loadAllMenuItemsForCashier();
+                }
+                break;
+            default:
+                break;
+          }
+    }
+    //connection to database
+    private static void connectToDatabase() 
+    {
+      String databaseName = "team_11_db";
+      String databaseUser = "team_11";
+      String databasePassword = ""; 
+      String url = String.format("jdbc:postgresql://csce-315-db.engr.tamu.edu/%s", databaseName);
+
+      try 
+      {
+          conn = DriverManager.getConnection(url, databaseUser, databasePassword);
+          JOptionPane.showMessageDialog(null, "Opened database successfully");
+      } 
+      catch (Exception e) 
+      {
+          e.printStackTrace();
+          JOptionPane.showMessageDialog(null, "Error: " + e.getMessage());
+          System.exit(0);
+      }
+  }
+  //close connection
+  private void closeConnection() 
+  {
+    try 
+    {
+        if (conn != null) 
+        {
+            conn.close();
+            JOptionPane.showMessageDialog(this, "Connection Closed.");
+        }
+    } 
+    catch (Exception e) 
+    {
+        JOptionPane.showMessageDialog(this, "Connection NOT Closed: " + e.getMessage());
+    }
+}
+    
 }
