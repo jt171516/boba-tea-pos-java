@@ -212,6 +212,32 @@ public class GUI extends JFrame implements ActionListener {
     }
     private void searchMenuItemsForCashier(String query)
     {
+      // \set query '%{param query here}%'
+      // SELECT name FROM item
+      // WHERE name LIKE :'query';
+
+      String searchQuery = "'%" + query + "%'";
+      String sql = "SELECT name, price FROM item WHERE name LIKE " + searchQuery;
+
+      menuItemsPanel.removeAll();
+      try(PreparedStatement stmt = conn.prepareStatement(sql)){
+        ResultSet rs = stmt.executeQuery();
+
+        while(rs.next()){
+          String name = rs.getString("name");
+          double price = rs.getDouble("price");
+
+          JButton itemButton = new JButton(name + " " + price);
+
+          itemButton.addActionListener(evt -> {
+            orderArea.append(name + " - $" + price + "\n");
+          });
+          menuItemsPanel.add(itemButton);
+        }
+        rs.close();
+      } catch (Exception e) {
+        JOptionPane.showMessageDialog(this, "Searching menu items error" + e.getMessage());
+      }
 
     }
 
