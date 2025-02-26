@@ -1,101 +1,370 @@
-import java.awt.*;
 import java.sql.*;
 import java.awt.event.*;
 import javax.swing.*;
+import javax.swing.border.EmptyBorder;
+import javax.swing.table.DefaultTableModel;
+import java.awt.*;
 
-/*
-  TODO:
-  1) Change credentials for your own team's database
-  2) Change SQL command to a relevant query that retrieves a small amount of data
-  3) Create a JTextArea object using the queried data
-  4) Add the new object to the JPanel p
-*/
 public class GUI extends JFrame implements ActionListener {
     static JFrame f;
 
-    public static void main(String[] args)
+    private static Connection conn = null;
+    //Tabbed Pane for manager menu
+    private JTabbedPane tabbedPane;
+
+    //CASHIER PANEL
+    private JPanel cashierPanel;
+    private JTextField searchField;
+    private JButton searchButton;
+    private JPanel menuItemsPanel;       
+    private JScrollPane menuItemsScroll;  
+    private JTextArea orderArea;
+    private JButton submitOrderButton;
+    //close button
+    private JButton closeButton;
+
+    //MANAGER PANEL
+    private JPanel managerPanel;
+
+    public static void main(String[] args) 
     {
-      //Building the connection
-      Connection conn = null;
-      //TODO STEP 1 (see line 7)
-      String database_name = "team_11_db";
-      String database_url = "jdbc:postgresql://csce-315-db.engr.tamu.edu/" + database_name;
-      login myCredentials = new login();
-        try {
-        conn = DriverManager.getConnection(database_url, login.user, login.pswd);
-      } catch (Exception e) {
-        e.printStackTrace();
-        System.err.println(e.getClass().getName()+": "+e.getMessage());
-        System.exit(0);
-      }
-      JOptionPane.showMessageDialog(null,"Opened database successfully");
+      connectToDatabase();
+      SwingUtilities.invokeLater(() -> 
+      {
+          GUI app = new GUI();
+          app.setVisible(true);
+      });
+  }
 
-      String name = "";
-      try{
-        //create a statement object
-        Statement stmt = conn.createStatement();
-        //create a SQL statement
-        //TODO Step 2 (see line 8)
-        String sqlStatement = "SELECT * FROM Item;";
-        //send statement to DBMS
-        ResultSet result = stmt.executeQuery(sqlStatement);
-        while (result.next()) {
-          // TODO you probably need to change the column name tat you are retrieving
-          //      this command gets the data from the "name" attribute
-          name += result.getString("name")+"\n";
-        }
-      } catch (Exception e){
-        JOptionPane.showMessageDialog(null,"Error accessing Database.");
-      }
-      // create a new frame
-      f = new JFrame("DB GUI");
+    public GUI()
+    {
+      super("Team 11 DB GUI");
+      setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+      setSize(1000, 700);
 
-      // create a object
-      GUI s = new GUI();
+      //initialize panel 
+      tabbedPane = new JTabbedPane();
+      add(tabbedPane, BorderLayout.CENTER);
 
-      // create a panel
-      JPanel p = new JPanel();
+      //cashier panel
+      buildCashierPanel();
+      tabbedPane.addTab("Cashier", cashierPanel);
 
-      JButton b = new JButton("Close");
+      //manager panel
+      buildManagerPanel();
+      tabbedPane.addTab("Manager", managerPanel);
 
-      // add actionlistener to button
-      b.addActionListener(s);
-
-      //3) Create a JTextArea object using the queried data
-      //4) Add the new object to the JPanel p
-
-      //TODO Step 3 (see line 9)
-      JTextArea textArea = new JTextArea(name);
-
-      //TODO Step 4 (see line 10)
-      p.add(textArea);
-
-      // add button to panel
-      p.add(b);
-
-      // add panel to frame
-      f.add(p);
-
-      // set the size of frame
-      f.setSize(400, 400);
-
-      f.setVisible(true);
-
-      //closing the connection
-      try {
-        conn.close();
-        JOptionPane.showMessageDialog(null,"Connection Closed.");
-      } catch(Exception e) {
-        JOptionPane.showMessageDialog(null,"Connection NOT Closed.");
-      }
+      //exit button
+      closeButton = new JButton("Close");
+      closeButton.addActionListener(this);
+      add(closeButton, BorderLayout.SOUTH);
     }
 
-    // if button is pressed
-    public void actionPerformed(ActionEvent e)
+    private void buildCashierPanel()
     {
-        String s = e.getActionCommand();
-        if (s.equals("Close")) {
-            f.dispose();
-        }
+      cashierPanel = new JPanel(new BorderLayout(10, 10));
+      cashierPanel.setBorder(new EmptyBorder(10, 10, 10, 10));
+
+        // top search panel
+        JPanel topPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        JLabel searchLabel = new JLabel("Search Items:");
+        searchField = new JTextField(15);
+        searchButton = new JButton("Search");
+        searchButton.addActionListener(this);
+
+        topPanel.add(searchLabel);
+        topPanel.add(searchField);
+        topPanel.add(searchButton);
+        // left = menu items, right = order area
+        JPanel centerPanel = new JPanel(new GridLayout(1, 2, 10, 10));
+        // menu items in a grid
+        menuItemsPanel = new JPanel(new GridLayout(0, 3, 10, 10));
+        menuItemsScroll = new JScrollPane(menuItemsPanel);
+
+        //order area
+        orderArea = new JTextArea();
+        orderArea.setEditable(true);
+        JScrollPane orderScroll = new JScrollPane(orderArea);
+
+        centerPanel.add(menuItemsScroll);
+        centerPanel.add(orderScroll);
+
+        // submit order
+        submitOrderButton = new JButton("Submit Order");
+        submitOrderButton.addActionListener(this);
+
+        // cashier pannel
+        cashierPanel.add(topPanel, BorderLayout.NORTH);
+        cashierPanel.add(centerPanel, BorderLayout.CENTER);
+        cashierPanel.add(submitOrderButton, BorderLayout.SOUTH);
+
+        // load menu items from DB
+        loadAllMenuItemsForCashier();
+        
     }
+    private void buildManagerPanel()  
+    {
+      managerPanel = new JPanel(new BorderLayout(10, 10));
+      managerPanel.setBorder(new EmptyBorder(10, 10, 10, 10));
+
+      JPanel topPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+      JLabel revenueLabel = new JLabel("Revenue:");
+      
+      JComboBox<String> productComboBox = new JComboBox<>(new String[] {"All Products", "Item 1", "Item 2"});
+      
+      JComboBox<String> timeRangeComboBox = new JComboBox<>(new String[] {"1 Week", "1 Month", "3 Months"});
+      
+      topPanel.add(revenueLabel);
+      topPanel.add(productComboBox);
+      topPanel.add(timeRangeComboBox);
+
+      // === CENTER PANEL ===
+      JPanel chartPanel = new JPanel() {
+          @Override
+          protected void paintComponent(Graphics g) {
+              super.paintComponent(g);
+              // Simple placeholder line graph:
+              g.drawLine(20, getHeight() - 20, getWidth() - 20, 20);
+          }
+      };
+      chartPanel.setPreferredSize(new Dimension(800, 200));
+      chartPanel.setBorder(BorderFactory.createTitledBorder("Revenue Chart"));
+
+      // We'll put Inventory on the left, Orders on the right.
+      JPanel bottomPanel = new JPanel(new GridLayout(1, 2, 10, 10));
+
+      // ----- Left :Inventory -----
+      // Example table data
+      String[] inventoryColumns = {"Product", "Stock", "Sales", "Status"};
+      Object[][] inventoryData = {
+          {"Item 1", 100, 1400, "Refill Recommended"},
+          {"Item 2", 200, 1000, "Refill Recommended"},
+          {"Item 3", 200, 700,  "Refill Recommended"},
+          {"Item 4", 500, 200,  ""}
+      };
+
+      JTable inventoryTable = new JTable(inventoryData, inventoryColumns);
+      JScrollPane inventoryScrollPane = new JScrollPane(inventoryTable);
+
+      // We can wrap the table in a panel with a title
+      JPanel inventoryPanel = new JPanel(new BorderLayout());
+      inventoryPanel.setBorder(BorderFactory.createTitledBorder("Inventory"));
+      inventoryPanel.add(inventoryScrollPane, BorderLayout.CENTER);
+
+      // ----- Right: Orders -----
+      String[] ordersColumns = {"Product", "Order #", "Quantity", "Arrival"};
+      Object[][] ordersData = {
+          {"Item 5", "#11111", 1000, "2/10/25"},
+          {"Item 6", "#11111", 1000, "2/10/25"},
+          {"Item 7", "#22222", 500,  "2/15/25"},
+          {"Item 8", "#22222", 500,  "2/15/25"}
+      };
+
+      JTable ordersTable = new JTable(ordersData, ordersColumns);
+      JScrollPane ordersScrollPane = new JScrollPane(ordersTable);
+
+      JPanel ordersPanel = new JPanel(new BorderLayout());
+      ordersPanel.setBorder(BorderFactory.createTitledBorder("Orders"));
+      ordersPanel.add(ordersScrollPane, BorderLayout.CENTER);
+
+      // Add both sub-panels to bottomPanel
+      bottomPanel.add(inventoryPanel);
+      bottomPanel.add(ordersPanel);
+
+      // === ASSEMBLE EVERYTHING ===
+      managerPanel.add(topPanel, BorderLayout.NORTH);
+      managerPanel.add(chartPanel, BorderLayout.CENTER);
+      managerPanel.add(bottomPanel, BorderLayout.SOUTH);
+
+      //sales report panel for manager panel
+      JComboBox<String> weekComboBox = new JComboBox<>(new String[]{"1", "2", "3", "4", "5"});
+      JButton salesReportButton = new JButton("Show Weekly Sales");
+
+      //add event listener to fetch sales data for the selected week
+      salesReportButton.addActionListener(evt -> {
+          int selectedWeek = Integer.parseInt((String) weekComboBox.getSelectedItem());
+          weeklySalesReport(selectedWeek);
+      });
+
+      topPanel.add(new JLabel("Select Week:"));
+      topPanel.add(weekComboBox);
+      topPanel.add(salesReportButton);
+  }
+
+    private void loadAllMenuItemsForCashier() 
+    {
+      if (conn == null) 
+      {
+        return;
+      }
+      //remove old menu items
+      menuItemsPanel.removeAll();
+      try
+      {
+        Statement epicStatement = conn.createStatement();
+        String sql = "SELECT name, price FROM Item";
+        ResultSet rs = epicStatement.executeQuery(sql);
+
+        while(rs.next())
+        {
+          String name = rs.getString("name");
+          double price = rs.getDouble("price");
+
+          //add button
+          JButton itemButton = new JButton(name + " " + price);
+
+          itemButton.addActionListener(evt -> {
+            orderArea.append(name + " - $" + price + "\n");
+          });
+          menuItemsPanel.add(itemButton);
+        }
+        rs.close();
+        epicStatement.close();
+      }
+      catch(Exception e)
+      {
+        JOptionPane.showMessageDialog(this, "LOADING MENU ITEMS ERROR sad " + e.getMessage());
+      }
+    }
+    private void searchMenuItemsForCashier(String query)
+    {
+
+    }
+
+    private JPanel salesReportPanel = null;
+    private void weeklySalesReport(int week)
+    {
+        if (conn == null)
+        {
+            return;
+        }
+
+        //sql query to fetch the weekly order count
+        String sql = "SELECT orderCount FROM (" +
+                "SELECT COUNT(id) AS orderCount, EXTRACT(WEEK FROM timestamp) AS week " +
+                "FROM orders GROUP BY week) AS ordersInWeek " +
+                "WHERE week = ?";
+
+        //add table header
+        DefaultTableModel model = new DefaultTableModel(new String[]{"Orders in Week " + week}, 0);
+
+        try (PreparedStatement weeklyStmt = conn.prepareStatement(sql))
+        {
+            weeklyStmt.setInt(1, week);
+            ResultSet result = weeklyStmt.executeQuery();
+
+            while (result.next())
+            {
+                model.addRow(new Object[]{result.getInt("orderCount")});
+            }
+            result.close();
+        }
+        catch (SQLException e)
+        {
+            e.printStackTrace();
+            JOptionPane.showMessageDialog(this, "Error executing query: " + e.getMessage());
+            return;
+        }
+
+        if (salesReportPanel != null)
+        {
+            managerPanel.remove(salesReportPanel);
+        }
+
+        //create panel for the sales report
+        salesReportPanel = new JPanel(new BorderLayout());
+        JTable salesTable = new JTable(model);
+        JScrollPane salesScrollPane = new JScrollPane(salesTable);
+
+        //create close sales report button
+        JButton closeButton = new JButton("X");
+        closeButton.setPreferredSize(new Dimension(50, 15));
+
+        //add event listener to close sales report panel once button is selected
+        closeButton.addActionListener(e -> {
+            managerPanel.remove(salesReportPanel);
+            salesReportPanel = null;
+            managerPanel.revalidate();
+            managerPanel.repaint();
+        });
+
+        //button panel layout and styling
+        JPanel buttonPanel = new JPanel(new BorderLayout());
+        buttonPanel.add(closeButton, BorderLayout.EAST);
+
+        //sales panel layout and styling
+        salesReportPanel.setBorder(BorderFactory.createTitledBorder("Weekly Sales Report"));
+        salesReportPanel.add(salesScrollPane, BorderLayout.CENTER);
+        salesReportPanel.add(buttonPanel, BorderLayout.NORTH);
+
+        //add the updated sales report panel to the right side of the manager panel
+        managerPanel.add(salesReportPanel, BorderLayout.EAST);
+
+        //refresh the panel properly
+        managerPanel.revalidate();
+        managerPanel.repaint();
+    }
+
+    //action listener
+    @Override
+    public void actionPerformed(ActionEvent e) 
+    {
+        String cmd = e.getActionCommand();
+        switch (cmd) 
+        {
+            case "Close":
+                closeConnection();
+                dispose();
+                break;
+            case "Search":
+                String query = searchField.getText().trim();
+                if (!query.isEmpty()) 
+                {
+                    searchMenuItemsForCashier(query);
+                } else 
+                {
+                    loadAllMenuItemsForCashier();
+                }
+                break;
+            default:
+                break;
+          }
+    }
+    //connection to database
+    private static void connectToDatabase() 
+    {
+      String databaseName = "team_11_db";
+      String databaseUser = "team_11";
+      String databasePassword = "bayleef93"; 
+      String url = String.format("jdbc:postgresql://csce-315-db.engr.tamu.edu/%s", databaseName);
+
+      try 
+      {
+          conn = DriverManager.getConnection(url, databaseUser, databasePassword);
+          JOptionPane.showMessageDialog(null, "Opened database successfully");
+      } 
+      catch (Exception e) 
+      {
+          e.printStackTrace();
+          JOptionPane.showMessageDialog(null, "Error: " + e.getMessage());
+          System.exit(0);
+      }
+  }
+  //close connection
+  private void closeConnection() 
+  {
+    try 
+    {
+        if (conn != null) 
+        {
+            conn.close();
+            JOptionPane.showMessageDialog(this, "Connection Closed.");
+        }
+    } 
+    catch (Exception e) 
+    {
+        JOptionPane.showMessageDialog(this, "Connection NOT Closed: " + e.getMessage());
+    }
+}
+    
 }
