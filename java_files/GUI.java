@@ -262,6 +262,57 @@ public class GUI extends JFrame implements ActionListener {
                     loadAllMenuItemsForCashier();
                 }
                 break;
+            case "Submit Order":
+            String orderText = orderArea.getText().trim();
+            if (orderText.isEmpty()) 
+            {
+                JOptionPane.showMessageDialog(this, "no order to submit!!!!");
+            } 
+            else 
+            {
+                String[] lines = orderText.split("\\n");
+                double totalPrice = 0.0;
+                StringBuilder orderItems = new StringBuilder();
+
+                for (String line : lines)
+                {
+                  String[] parts = line.split(" - \\$");
+                  if (parts.length == 2) 
+                  {
+                    String itemName = parts[0].trim();
+                    double price = 0.0;
+                    try 
+                    {
+                        price = Double.parseDouble(parts[1].trim());
+                    } catch (NumberFormatException numberFormatIssue) 
+                    {
+                        continue;
+                    }
+                    totalPrice += price;
+                    if (orderItems.length() > 0) 
+                    {
+                        orderItems.append(", ");
+                    }
+                    orderItems.append(itemName);
+                  }
+                }
+              try
+              {
+                String sql = "INSERT INTO Orders (name, totalprice, timestamp) VALUES (?, ?, CURRENT_TIMESTAMP)";
+                PreparedStatement pStatement = conn.prepareStatement(sql);
+                pStatement.setString(1, orderItems.toString());
+                pStatement.setDouble(2, totalPrice);
+                pStatement.executeUpdate();
+                pStatement.close();
+                JOptionPane.showMessageDialog(this, "order submitted!\n" + "items: " + orderItems.toString() + "\ntotal price: $" + totalPrice);
+                orderArea.setText("");
+              }
+              catch(Exception e1)
+              {
+                JOptionPane.showMessageDialog(this, "submitting order failed sad " + e1.getMessage());
+              }
+            }
+                
             default:
                 break;
           }
