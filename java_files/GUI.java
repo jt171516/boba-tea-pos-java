@@ -2,14 +2,6 @@ import java.sql.*;
 import java.awt.event.*;
 import javax.swing.*;
 
-/*
-  TODO:
-  1) Change credentials for your own team's database
-  2) Change SQL command to a relevant query that retrieves a small amount of data
-  3) Create a JTextArea object using the queried data
-  4) Add the new object to the JPanel p
-*/
-
 public class GUI extends JFrame implements ActionListener {
     static JFrame f;
 
@@ -17,13 +9,12 @@ public class GUI extends JFrame implements ActionListener {
     {
       //Building the connection
       Connection conn = null;
-      //TODO STEP 1 (see line 7)
       String database_name = "team_11_db";
       String database_user = "team_11";
-      String database_password = "";
       String database_url = String.format("jdbc:postgresql://csce-315-db.engr.tamu.edu/%s", database_name);
+      dbSetup myCredentials = new dbSetup();
       try {
-        conn = DriverManager.getConnection(database_url, database_user, database_password);
+        conn = DriverManager.getConnection(database_url, database_user, dbSetup.pswd);
       } catch (Exception e) {
         e.printStackTrace();
         System.err.println(e.getClass().getName()+": "+e.getMessage());
@@ -36,12 +27,10 @@ public class GUI extends JFrame implements ActionListener {
         //create a statement object
         Statement stmt = conn.createStatement();
         //create a SQL statement
-        //TODO Step 2 (see line 8)
         String sqlStatement = "SELECT * FROM Item";
         //send statement to DBMS
         ResultSet result = stmt.executeQuery(sqlStatement);
         while (result.next()) {
-          // TODO you probably need to change the column name tat you are retrieving
           //      this command gets the data from the "name" attribute
           name += result.getString("name")+"\n";
         }
@@ -62,13 +51,8 @@ public class GUI extends JFrame implements ActionListener {
       // add actionlistener to button
       b.addActionListener(s);
 
-      //3) Create a JTextArea object using the queried data
-      //4) Add the new object to the JPanel p
-
-      //TODO Step 3 (see line 9)
       JTextArea textArea = new JTextArea(name);
 
-      //TODO Step 4 (see line 10)
       p.add(textArea);
 
       // add button to panel
