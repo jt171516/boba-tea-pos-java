@@ -76,7 +76,7 @@ public class GUI extends JFrame implements ActionListener {
 
         //order area
         orderArea = new JTextArea();
-        orderArea.setEditable(false);
+        orderArea.setEditable(true);
         JScrollPane orderScroll = new JScrollPane(orderArea);
 
         centerPanel.add(menuItemsScroll);
@@ -103,7 +103,32 @@ public class GUI extends JFrame implements ActionListener {
       }
       //remove old menu items
       menuItemsPanel.removeAll();
+      try
+      {
+        Statement epicStatement = conn.createStatement();
+        String sql = "SELECT name, price FROM Item";
+        ResultSet rs = epicStatement.executeQuery(sql);
 
+        while(rs.next())
+        {
+          String name = rs.getString("name");
+          double price = rs.getDouble("price");
+
+          //add button
+          JButton itemButton = new JButton(name + " " + price);
+
+          itemButton.addActionListener(evt -> {
+            orderArea.append(name + " - $" + price + "\n");
+          });
+          menuItemsPanel.add(itemButton);
+        }
+        rs.close();
+        epicStatement.close();
+      }
+      catch(Exception e)
+      {
+        JOptionPane.showMessageDialog(this, "LOADING MENU ITEMS ERROR sad " + e.getMessage());
+      }
     }
 
     private void searchMenuItemsForCashier(String query)
