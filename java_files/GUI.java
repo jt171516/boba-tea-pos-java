@@ -216,9 +216,12 @@ public class GUI extends JFrame implements ActionListener {
       // SELECT name FROM item
       // WHERE name LIKE :'query';
 
-      String searchQuery = '%' + query + '%';
-      try(Statement stmt = conn.createStatement()){
-        ResultSet rs = stmt.executeQuery("SELECT name FROM item WHERE name LIKE :'" + searchQuery + "'");
+      String searchQuery = "'%" + query + "%'";
+      String sql = "SELECT name, price FROM item WHERE name LIKE " + searchQuery;
+
+      menuItemsPanel.removeAll();
+      try(PreparedStatement stmt = conn.prepareStatement(sql)){
+        ResultSet rs = stmt.executeQuery();
 
         while(rs.next()){
           String name = rs.getString("name");
@@ -232,7 +235,6 @@ public class GUI extends JFrame implements ActionListener {
           menuItemsPanel.add(itemButton);
         }
         rs.close();
-        stmt.close();
       } catch (Exception e) {
         JOptionPane.showMessageDialog(this, "Searching menu items error" + e.getMessage());
       }
