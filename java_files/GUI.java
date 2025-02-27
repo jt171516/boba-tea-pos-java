@@ -78,7 +78,7 @@ public class GUI extends JFrame implements ActionListener {
         // left = menu items, right = order area
         JPanel centerPanel = new JPanel(new GridLayout(1, 2, 10, 10));
         // menu items in a grid
-        menuItemsPanel = new JPanel(new GridLayout(0, 3, 10, 10));
+        menuItemsPanel = new JPanel(new GridLayout(0, 5, 5, 5));
         menuItemsScroll = new JScrollPane(menuItemsPanel);
 
         //order area
@@ -211,7 +211,11 @@ public class GUI extends JFrame implements ActionListener {
           double price = rs.getDouble("price");
 
           //add button
-          JButton itemButton = new JButton(name + " " + price);
+          JButton itemButton = new JButton("<html>" + name + "<br>$" + price + "</html>");
+          
+          itemButton.setFont(new Font("Arial", Font.PLAIN, 12));
+          itemButton.setMargin(new Insets(1, 1, 1, 1));
+          itemButton.setPreferredSize(new Dimension(80, 60));
 
           itemButton.addActionListener(evt -> {
             orderArea.append(name + " - $" + price + "\n");
