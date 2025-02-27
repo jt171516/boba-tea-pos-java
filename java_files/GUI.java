@@ -169,9 +169,6 @@ public class GUI extends JFrame implements ActionListener {
         JButton addButton = new JButton("Add Item");
         JButton removeButton = new JButton("Remove Item");
 
-        addButton.setPreferredSize(new Dimension(100, 8));
-        removeButton.setPreferredSize(new Dimension(120, 8));
-
         inventoryButtonsPanel.add(addButton);
         inventoryButtonsPanel.add(removeButton);
 
