@@ -16,8 +16,8 @@ public class GUI extends JFrame implements ActionListener {
     private JPanel cashierPanel;
     private JTextField searchField;
     private JButton searchButton;
-    private JPanel menuItemsPanel;       
-    private JScrollPane menuItemsScroll;  
+    private JPanel menuItemsPanel;
+    private JScrollPane menuItemsScroll;
     private JTextArea orderArea;
     private JButton submitOrderButton;
     //close button
@@ -37,47 +37,47 @@ public class GUI extends JFrame implements ActionListener {
     private JButton addEmployeeButton;
     private JButton deleteEmployeeButton;
 
-    public static void main(String[] args) 
+    public static void main(String[] args)
     {
-      connectToDatabase();
-      SwingUtilities.invokeLater(() -> 
-      {
-          GUI app = new GUI();
-          app.setVisible(true);
-      });
-  }
+        connectToDatabase();
+        SwingUtilities.invokeLater(() ->
+        {
+            GUI app = new GUI();
+            app.setVisible(true);
+        });
+    }
 
     public GUI()
     {
-      super("Team 11 DB GUI");
-      setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-      setSize(1000, 700);
+        super("Team 11 DB GUI");
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setSize(1000, 700);
 
-      //initialize panel 
-      tabbedPane = new JTabbedPane();
-      add(tabbedPane, BorderLayout.CENTER);
+        //initialize panel
+        tabbedPane = new JTabbedPane();
+        add(tabbedPane, BorderLayout.CENTER);
 
-      //cashier panel
-      buildCashierPanel();
-      tabbedPane.addTab("Cashier", cashierPanel);
+        //cashier panel
+        buildCashierPanel();
+        tabbedPane.addTab("Cashier", cashierPanel);
 
-      //manager panel
-      buildManagerPanel();
-      tabbedPane.addTab("Manager", managerPanel);
+        //manager panel
+        buildManagerPanel();
+        tabbedPane.addTab("Manager", managerPanel);
 
-      //employee management tab
-      buildEmployeeManagementPanel();
-      tabbedPane.addTab("Employees", employeesPanel);
-      //exit button
-      closeButton = new JButton("Close");
-      closeButton.addActionListener(this);
-      add(closeButton, BorderLayout.SOUTH);
+        //employee management tab
+        buildEmployeeManagementPanel();
+        tabbedPane.addTab("Employees", employeesPanel);
+        //exit button
+        closeButton = new JButton("Close");
+        closeButton.addActionListener(this);
+        add(closeButton, BorderLayout.SOUTH);
     }
 
     private void buildCashierPanel()
     {
-      cashierPanel = new JPanel(new BorderLayout(10, 10));
-      cashierPanel.setBorder(new EmptyBorder(10, 10, 10, 10));
+        cashierPanel = new JPanel(new BorderLayout(10, 10));
+        cashierPanel.setBorder(new EmptyBorder(10, 10, 10, 10));
 
         // top search panel
         JPanel topPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
@@ -114,60 +114,60 @@ public class GUI extends JFrame implements ActionListener {
 
         // load menu items from DB
         loadAllMenuItemsForCashier();
-        
+
     }
-    private void buildManagerPanel()  
+    private void buildManagerPanel()
     {
-      managerPanel = new JPanel(new BorderLayout(10, 10));
-      managerPanel.setBorder(new EmptyBorder(10, 10, 10, 10));
+        managerPanel = new JPanel(new BorderLayout(10, 10));
+        managerPanel.setBorder(new EmptyBorder(10, 10, 10, 10));
 
-      JPanel topPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-      JLabel revenueLabel = new JLabel("Revenue:");
-      
-      JComboBox<String> productComboBox = new JComboBox<>(new String[] {"All Products", "Item 1", "Item 2"});
-      
-      JComboBox<String> timeRangeComboBox = new JComboBox<>(new String[] {"1 Week", "1 Month", "3 Months"});
-      
-      topPanel.add(revenueLabel);
-      topPanel.add(productComboBox);
-      topPanel.add(timeRangeComboBox);
+        JPanel topPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        JLabel revenueLabel = new JLabel("Revenue:");
 
-      // === CENTER PANEL ===
-      JPanel chartPanel = new JPanel() {
-          @Override
-          protected void paintComponent(Graphics g) {
-              super.paintComponent(g);
-              // Simple placeholder line graph:
-              g.drawLine(20, getHeight() - 20, getWidth() - 20, 20);
-          }
-      };
-      chartPanel.setPreferredSize(new Dimension(800, 200));
-      chartPanel.setBorder(BorderFactory.createTitledBorder("Revenue Chart"));
+        JComboBox<String> productComboBox = new JComboBox<>(new String[] {"All Products", "Item 1", "Item 2"});
 
-      // We'll put Inventory on the left, Orders on the right.
-      JPanel bottomPanel = new JPanel(new GridLayout(1, 2, 10, 10));
+        JComboBox<String> timeRangeComboBox = new JComboBox<>(new String[] {"1 Week", "1 Month", "3 Months"});
 
-      // ----- Left :Inventory -----
-      // Example table data
-      String[] inventoryColumns = {"Product", "Stock", "Sales", "Status"};
-      DefaultTableModel inventoryTableModel = new DefaultTableModel(inventoryColumns, 0);
+        topPanel.add(revenueLabel);
+        topPanel.add(productComboBox);
+        topPanel.add(timeRangeComboBox);
 
-      JTable inventoryTable = new JTable(inventoryTableModel);
-      JScrollPane inventoryScrollPane = new JScrollPane(inventoryTable);
+        // === CENTER PANEL ===
+        JPanel chartPanel = new JPanel() {
+            @Override
+            protected void paintComponent(Graphics g) {
+                super.paintComponent(g);
+                // Simple placeholder line graph:
+                g.drawLine(20, getHeight() - 20, getWidth() - 20, 20);
+            }
+        };
+        chartPanel.setPreferredSize(new Dimension(800, 200));
+        chartPanel.setBorder(BorderFactory.createTitledBorder("Revenue Chart"));
 
-      // We can wrap the table in a panel with a title
-      JPanel inventoryPanel = new JPanel(new BorderLayout());
-      inventoryPanel.setBorder(BorderFactory.createTitledBorder("Inventory"));
-      inventoryPanel.add(inventoryScrollPane, BorderLayout.CENTER);
+        // We'll put Inventory on the left, Orders on the right.
+        JPanel bottomPanel = new JPanel(new GridLayout(1, 2, 10, 10));
 
-      //populates the inventory table with the inventory from the database
-      populateInventoryTable(inventoryTableModel);
+        // ----- Left :Inventory -----
+        // Example table data
+        String[] inventoryColumns = {"Product", "Stock", "Sales", "Status"};
+        DefaultTableModel inventoryTableModel = new DefaultTableModel(inventoryColumns, 0);
 
-      //add buttons for managing inventory
+        JTable inventoryTable = new JTable(inventoryTableModel);
+        JScrollPane inventoryScrollPane = new JScrollPane(inventoryTable);
+
+        // We can wrap the table in a panel with a title
+        JPanel inventoryPanel = new JPanel(new BorderLayout());
+        inventoryPanel.setBorder(BorderFactory.createTitledBorder("Inventory"));
+        inventoryPanel.add(inventoryScrollPane, BorderLayout.CENTER);
+
+        //populates the inventory table with the inventory from the database
+        populateInventoryTable(inventoryTableModel);
+
+        //add buttons for managing inventory
         JPanel inventoryButtonsPanel = new JPanel(new FlowLayout());
 
-        JButton addButton = new JButton("Add Item");
-        JButton removeButton = new JButton("Remove Item");
+        JButton addButton = new JButton("Add Inventory");
+        JButton removeButton = new JButton("Remove Inventory");
 
         inventoryButtonsPanel.add(addButton);
         inventoryButtonsPanel.add(removeButton);
@@ -176,144 +176,151 @@ public class GUI extends JFrame implements ActionListener {
 
         //add inventory button actions
         addButton.addActionListener(evt -> {
+            JTextField itemId = new JTextField();
             JTextField itemNameField = new JTextField();
             JTextField qtyField = new JTextField();
-            Object[] message = {"Item Name:", itemNameField, "Quantity:", qtyField};
-            int option = JOptionPane.showConfirmDialog(null, message, "Add New Item", JOptionPane.OK_CANCEL_OPTION);
+            Object[] message = {"ID: ", itemId, "Inventory Name:", itemNameField, "Quantity:", qtyField};
+            int option = JOptionPane.showConfirmDialog(null, message, "Add New Inventory", JOptionPane.OK_CANCEL_OPTION);
             if(option == JOptionPane.OK_OPTION) {
+                int itemIdInt = Integer.parseInt(itemId.getText());
                 String itemName = itemNameField.getText();
                 int qty = Integer.parseInt(qtyField.getText());
-                addInventoryItem(itemName, qty);
+                addInventoryItem(itemIdInt, itemName, qty);
                 populateInventoryTable(inventoryTableModel);
             }
         });
         removeButton.addActionListener(evt -> {
-            String itemName = (String) JOptionPane.showInputDialog(null, "Item Name:", "Remove Item", JOptionPane.PLAIN_MESSAGE);
-            if(itemName != null) {
-                removeInventoryItem(itemName);
+            JTextField itemId = new JTextField();
+            JTextField itemNameField = new JTextField();
+            Object[] message = {"ID: ", itemId, "Inventory Name:", itemNameField};
+            int option =  JOptionPane.showConfirmDialog(null, message, "Remove Item", JOptionPane.OK_CANCEL_OPTION);
+            if(option == JOptionPane.OK_OPTION) {
+                int itemIdInt = Integer.parseInt(itemId.getText());
+                String itemName = itemNameField.getText();
+                removeInventoryItem(itemIdInt, itemName);
                 populateInventoryTable(inventoryTableModel);
             }
         });
 
-      // ----- Right: Orders -----
-      String[] itemColumns = {"ID", "Name", "Price", "Calories", "Sales"};
-      DefaultTableModel itemTableModel = new DefaultTableModel(itemColumns, 0);
+        // ----- Right: Orders -----
+        String[] itemColumns = {"ID", "Name", "Price", "Calories", "Sales"};
+        DefaultTableModel itemTableModel = new DefaultTableModel(itemColumns, 0);
 
-      JTable itemTable = new JTable(itemTableModel);
-      JScrollPane itemScrollPane = new JScrollPane(itemTable);
+        JTable itemTable = new JTable(itemTableModel);
+        JScrollPane itemScrollPane = new JScrollPane(itemTable);
 
-      // We can wrap the table in a panel with a title
-      JPanel itemPanel = new JPanel(new BorderLayout());
-      itemPanel.setBorder(BorderFactory.createTitledBorder("Items"));
-      itemPanel.add(itemScrollPane, BorderLayout.CENTER);
+        // We can wrap the table in a panel with a title
+        JPanel itemPanel = new JPanel(new BorderLayout());
+        itemPanel.setBorder(BorderFactory.createTitledBorder("Items"));
+        itemPanel.add(itemScrollPane, BorderLayout.CENTER);
 
-      // Add button for managing items
-      JButton manageItemsButton = new JButton("Manage Items");
-      JButton removeItemsButton = new JButton("Remove Items");
-      JPanel itemButtonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
-      itemButtonPanel.add(manageItemsButton);
-      itemButtonPanel.add(removeItemsButton);
-      itemPanel.add(itemButtonPanel, BorderLayout.SOUTH);
+        // Add button for managing items
+        JButton manageItemsButton = new JButton("Manage Items");
+        JButton removeItemsButton = new JButton("Remove Items");
+        JPanel itemButtonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
+        itemButtonPanel.add(manageItemsButton);
+        itemButtonPanel.add(removeItemsButton);
+        itemPanel.add(itemButtonPanel, BorderLayout.SOUTH);
 
-      // Add event listener for manage items button
-      manageItemsButton.addActionListener(evt -> {
-         itemManagement(itemTableModel);
-      });
-      removeItemsButton.addActionListener(evt -> {
-          String itemID = (String) JOptionPane.showInputDialog(null, "Item ID:", "Remove Item", JOptionPane.PLAIN_MESSAGE);
-              if(itemID != null) {
-                  removeItem(Integer.parseInt(itemID));
-                  loadItemsManager(itemTableModel);
+        // Add event listener for manage items button
+        manageItemsButton.addActionListener(evt -> {
+            itemManagement(itemTableModel);
+        });
+        removeItemsButton.addActionListener(evt -> {
+            String itemID = (String) JOptionPane.showInputDialog(null, "Item ID:", "Remove Item", JOptionPane.PLAIN_MESSAGE);
+            if(itemID != null) {
+                removeItem(Integer.parseInt(itemID));
+                loadItemsManager(itemTableModel);
             }
-      });
+        });
 
-      // Load items
-      loadItemsManager(itemTableModel);
+        // Load items
+        loadItemsManager(itemTableModel);
 
-      // Add both sub-panels to bottomPanel
-      bottomPanel.add(inventoryPanel);
-      bottomPanel.add(itemPanel);
+        // Add both sub-panels to bottomPanel
+        bottomPanel.add(inventoryPanel);
+        bottomPanel.add(itemPanel);
 
-      // === ASSEMBLE EVERYTHING ===
-      managerPanel.add(topPanel, BorderLayout.NORTH);
-      managerPanel.add(chartPanel, BorderLayout.CENTER);
-      managerPanel.add(bottomPanel, BorderLayout.SOUTH);
+        // === ASSEMBLE EVERYTHING ===
+        managerPanel.add(topPanel, BorderLayout.NORTH);
+        managerPanel.add(chartPanel, BorderLayout.CENTER);
+        managerPanel.add(bottomPanel, BorderLayout.SOUTH);
 
-      //sales report panel for manager panel
-      JComboBox<String> weekComboBox = new JComboBox<>(new String[]{"1", "2", "3", "4", "5"});
-      JButton salesReportButton = new JButton("Show Weekly Sales");
+        //sales report panel for manager panel
+        JComboBox<String> weekComboBox = new JComboBox<>(new String[]{"1", "2", "3", "4", "5"});
+        JButton salesReportButton = new JButton("Show Weekly Sales");
 
-      //add event listener to fetch sales data for the selected week
-      salesReportButton.addActionListener(evt -> {
-          int selectedWeek = Integer.parseInt((String) weekComboBox.getSelectedItem());
-          weeklySalesReport(selectedWeek);
-      });
+        //add event listener to fetch sales data for the selected week
+        salesReportButton.addActionListener(evt -> {
+            int selectedWeek = Integer.parseInt((String) weekComboBox.getSelectedItem());
+            weeklySalesReport(selectedWeek);
+        });
 
-      topPanel.add(new JLabel("Select Week:"));
-      topPanel.add(weekComboBox);
-      topPanel.add(salesReportButton);
+        topPanel.add(new JLabel("Select Week:"));
+        topPanel.add(weekComboBox);
+        topPanel.add(salesReportButton);
     }
     private void buildEmployeeManagementPanel() {
         employeesPanel = new JPanel(new BorderLayout(10, 10));
         employeesPanel.setBorder(new EmptyBorder(10, 10, 10, 10));
-    
+
         // Form to add a new employee using GridBagLayout for better control
         JPanel addPanel = new JPanel(new GridBagLayout());
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.insets = new Insets(5, 5, 5, 5); // Padding
         gbc.anchor = GridBagConstraints.WEST;
-    
+
         // Name label and field
         gbc.gridx = 0;
         gbc.gridy = 0;
         addPanel.add(new JLabel("Name:"), gbc);
-    
+
         gbc.gridx = 1;
         empNameField = new JTextField(15); // Increased column size for better visibility
         addPanel.add(empNameField, gbc);
-    
+
         // Manager checkbox
         gbc.gridx = 2;
         managerCheckBox = new JCheckBox("Manager");
         addPanel.add(managerCheckBox, gbc);
-    
+
         // Add Employee button
         gbc.gridx = 3;
         addEmployeeButton = new JButton("Add Employee");
         addEmployeeButton.addActionListener(e -> addEmployee());
         addPanel.add(addEmployeeButton, gbc);
-    
+
         // Table setup remains the same
         String[] columns = { "ID", "Name", "Manager" };
         employeesTableModel = new DefaultTableModel(columns, 0);
         employeesTable = new JTable(employeesTableModel);
         JScrollPane tableScroll = new JScrollPane(employeesTable);
-    
+
         // Delete button setup remains the same
         JPanel bottomPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         deleteEmployeeButton = new JButton("Delete Selected");
         deleteEmployeeButton.addActionListener(e -> deleteSelectedEmployee());
         bottomPanel.add(deleteEmployeeButton);
-    
+
         // Assemble the employeesPanel
         employeesPanel.add(addPanel, BorderLayout.NORTH);
         employeesPanel.add(tableScroll, BorderLayout.CENTER);
         employeesPanel.add(bottomPanel, BorderLayout.SOUTH);
-    
+
         loadAllEmployees();
     }
     private void loadAllEmployees() {
         // Clear old data
         employeesTableModel.setRowCount(0);
-    
-        String sql = "SELECT id, name, manager FROM employee"; 
+
+        String sql = "SELECT id, name, manager FROM employee";
         try (Statement stmt = conn.createStatement();
              ResultSet rs = stmt.executeQuery(sql)) {
             while (rs.next()) {
                 int id = rs.getInt("id");
                 String name = rs.getString("name");
                 boolean isManager = rs.getBoolean("manager");
-                
+
                 // Convert boolean to string or keep it boolean
                 employeesTableModel.addRow(new Object[]{id, name, isManager});
             }
@@ -324,12 +331,12 @@ public class GUI extends JFrame implements ActionListener {
     private void addEmployee() {
         String name = empNameField.getText().trim();
         boolean isManager = managerCheckBox.isSelected();
-    
+
         if (name.isEmpty()) {
             JOptionPane.showMessageDialog(this, "Please enter a name.");
             return;
         }
-    
+
         // 1) get nextId
         int nextId = 0;
         String getMaxIdSQL = "SELECT COALESCE(MAX(id), 0) + 1 AS next_id FROM employee";
@@ -342,7 +349,7 @@ public class GUI extends JFrame implements ActionListener {
             JOptionPane.showMessageDialog(this, "Error getting next ID: " + ex.getMessage());
             return;
         }
-    
+
         // 2) Insert row with nextId
         String sql = "INSERT INTO employee (id, name, manager) VALUES (?, ?, ?)";
         try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
@@ -350,120 +357,120 @@ public class GUI extends JFrame implements ActionListener {
             pstmt.setString(2, name);
             pstmt.setBoolean(3, isManager);
             pstmt.executeUpdate();
-    
+
             // 3) refresh
             loadAllEmployees();
-    
+
             // 4) clear UI
             empNameField.setText("");
             managerCheckBox.setSelected(false);
-    
+
             JOptionPane.showMessageDialog(this, "Employee added successfully (ID=" + nextId + ")!");
         } catch (SQLException ex) {
             JOptionPane.showMessageDialog(this, "Error adding employee: " + ex.getMessage());
         }
     }
-    
+
     private void deleteSelectedEmployee() {
         int selectedRow = employeesTable.getSelectedRow();
         if (selectedRow < 0) {
             JOptionPane.showMessageDialog(this, "Please select an employee to delete.");
             return;
         }
-    
+
         // ID is in the first column (index 0)
         int employeeId = (int) employeesTableModel.getValueAt(selectedRow, 0);
-    
+
         int confirm = JOptionPane.showConfirmDialog(
-            this,
-            "Are you sure you want to delete this employee (ID=" + employeeId + ")?",
-            "Delete Employee",
-            JOptionPane.YES_NO_OPTION
+                this,
+                "Are you sure you want to delete this employee (ID=" + employeeId + ")?",
+                "Delete Employee",
+                JOptionPane.YES_NO_OPTION
         );
-    
+
         if (confirm == JOptionPane.YES_OPTION) {
             String sql = "DELETE FROM employee WHERE id = ?";
             try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
                 pstmt.setInt(1, employeeId);
                 pstmt.executeUpdate();
-    
+
                 // Refresh table
                 loadAllEmployees();
-    
+
                 JOptionPane.showMessageDialog(this, "Employee deleted successfully!");
             } catch (SQLException e) {
                 JOptionPane.showMessageDialog(this, "Error deleting employee: " + e.getMessage());
             }
         }
     }
-    private void loadAllMenuItemsForCashier() 
+    private void loadAllMenuItemsForCashier()
     {
-      if (conn == null) 
-      {
-        return;
-      }
-      //remove old menu items
-      menuItemsPanel.removeAll();
-      try
-      {
-        Statement epicStatement = conn.createStatement();
-        String sql = "SELECT name, price FROM Item";
-        ResultSet rs = epicStatement.executeQuery(sql);
-
-        while(rs.next())
+        if (conn == null)
         {
-          String name = rs.getString("name");
-          double price = rs.getDouble("price");
-
-          //add button
-          JButton itemButton = new JButton("<html>" + name + "<br>$" + price + "</html>");
-          
-          itemButton.setFont(new Font("Arial", Font.PLAIN, 12));
-          itemButton.setMargin(new Insets(1, 1, 1, 1));
-          itemButton.setPreferredSize(new Dimension(80, 60));
-
-          itemButton.addActionListener(evt -> {
-            orderArea.append(name + " - $" + price + "\n");
-          });
-          menuItemsPanel.add(itemButton);
+            return;
         }
-        rs.close();
-        epicStatement.close();
-      }
-      catch(Exception e)
-      {
-        JOptionPane.showMessageDialog(this, "LOADING MENU ITEMS ERROR sad " + e.getMessage());
-      }
+        //remove old menu items
+        menuItemsPanel.removeAll();
+        try
+        {
+            Statement epicStatement = conn.createStatement();
+            String sql = "SELECT name, price FROM Item";
+            ResultSet rs = epicStatement.executeQuery(sql);
+
+            while(rs.next())
+            {
+                String name = rs.getString("name");
+                double price = rs.getDouble("price");
+
+                //add button
+                JButton itemButton = new JButton("<html>" + name + "<br>$" + price + "</html>");
+
+                itemButton.setFont(new Font("Arial", Font.PLAIN, 12));
+                itemButton.setMargin(new Insets(1, 1, 1, 1));
+                itemButton.setPreferredSize(new Dimension(80, 60));
+
+                itemButton.addActionListener(evt -> {
+                    orderArea.append(name + " - $" + price + "\n");
+                });
+                menuItemsPanel.add(itemButton);
+            }
+            rs.close();
+            epicStatement.close();
+        }
+        catch(Exception e)
+        {
+            JOptionPane.showMessageDialog(this, "LOADING MENU ITEMS ERROR sad " + e.getMessage());
+        }
     }
 
     private void searchMenuItemsForCashier(String query)
     {
-      // \set query '%{param query here}%'
-      // SELECT name FROM item
-      // WHERE name LIKE :'query';
+        // \set query '%{param query here}%'
+        // SELECT name FROM item
+        // WHERE name LIKE :'query';
 
-      String searchQuery = "'%" + query + "%'";
-      String sql = "SELECT name, price FROM item WHERE name LIKE " + searchQuery;
+        String searchQuery = "'%" + query + "%'";
+        String sql = "SELECT name, price FROM item WHERE name LIKE " + searchQuery;
 
-      menuItemsPanel.removeAll();
-      try(PreparedStatement stmt = conn.prepareStatement(sql)){
-        ResultSet rs = stmt.executeQuery();
+        menuItemsPanel.removeAll();
+        try(PreparedStatement stmt = conn.prepareStatement(sql)){
+            ResultSet rs = stmt.executeQuery();
 
-        while(rs.next()){
-          String name = rs.getString("name");
-          double price = rs.getDouble("price");
+            while(rs.next()){
+                String name = rs.getString("name");
+                double price = rs.getDouble("price");
 
-          JButton itemButton = new JButton(name + " " + price);
+                JButton itemButton = new JButton(name + " " + price);
 
-          itemButton.addActionListener(evt -> {
-            orderArea.append(name + " - $" + price + "\n");
-          });
-          menuItemsPanel.add(itemButton);
+                itemButton.addActionListener(evt -> {
+                    orderArea.append(name + " - $" + price + "\n");
+                });
+                menuItemsPanel.add(itemButton);
+            }
+            rs.close();
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(this, "Searching menu items error" + e.getMessage());
         }
-        rs.close();
-      } catch (Exception e) {
-        JOptionPane.showMessageDialog(this, "Searching menu items error" + e.getMessage());
-      }
 
     }
 
@@ -541,15 +548,16 @@ public class GUI extends JFrame implements ActionListener {
         managerPanel.repaint();
     }
 
-    private void addInventoryItem(String name, int qty)
+    private void addInventoryItem(int id, String name, int qty)
     {
         if (conn == null) {
             return;
         }
-        String sql = "INSERT INTO inventory (id, name, qty) VALUES (27, ?, ?)";
+        String sql = "INSERT INTO inventory (id, name, qty) VALUES (?, ?, ?)";
         try (PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setString(1, name);
-            stmt.setInt(2, qty);
+            stmt.setInt(1, id);
+            stmt.setString(2, name);
+            stmt.setInt(3, qty);
             stmt.executeUpdate();
         } catch (SQLException e) {
             e.printStackTrace();
@@ -558,16 +566,17 @@ public class GUI extends JFrame implements ActionListener {
         }
     }
 
-    private void removeInventoryItem(String name)
+    private void removeInventoryItem(int itemId, String name)
     {
         if (conn == null)
         {
             return;
         }
-        String sql = "DELETE FROM inventory WHERE name = ?";
+        String sql = "DELETE FROM inventory WHERE id = ? AND name = ?";
         try (PreparedStatement stmt = conn.prepareStatement(sql))
         {
-            stmt.setString(1, name);
+            stmt.setInt(1, itemId);
+            stmt.setString(2, name);
             stmt.executeUpdate();
         }
         catch (SQLException e)
@@ -783,10 +792,10 @@ public class GUI extends JFrame implements ActionListener {
 
     //action listener
     @Override
-    public void actionPerformed(ActionEvent e) 
+    public void actionPerformed(ActionEvent e)
     {
         String cmd = e.getActionCommand();
-        switch (cmd) 
+        switch (cmd)
         {
             case "Close":
                 closeConnection();
@@ -794,104 +803,103 @@ public class GUI extends JFrame implements ActionListener {
                 break;
             case "Search":
                 String query = searchField.getText().trim();
-                if (!query.isEmpty()) 
+                if (!query.isEmpty())
                 {
                     searchMenuItemsForCashier(query);
-                } else 
+                } else
                 {
                     loadAllMenuItemsForCashier();
                 }
                 break;
             case "Submit Order":
-            String orderText = orderArea.getText().trim();
-            if (orderText.isEmpty()) 
-            {
-                JOptionPane.showMessageDialog(this, "no order to submit!!!!");
-            } 
-            else 
-            {
-                String[] lines = orderText.split("\\n");
-                double totalPrice = 0.0;
-                StringBuilder orderItems = new StringBuilder();
-
-                for (String line : lines)
+                String orderText = orderArea.getText().trim();
+                if (orderText.isEmpty())
                 {
-                  String[] parts = line.split(" - \\$");
-                  if (parts.length == 2) 
-                  {
-                    String itemName = parts[0].trim();
-                    double price = 0.0;
-                    try 
-                    {
-                        price = Double.parseDouble(parts[1].trim());
-                    } catch (NumberFormatException numberFormatIssue) 
-                    {
-                        continue;
-                    }
-                    totalPrice += price;
-                    if (orderItems.length() > 0) 
-                    {
-                        orderItems.append(", ");
-                    }
-                    orderItems.append(itemName);
-                  }
+                    JOptionPane.showMessageDialog(this, "no order to submit!!!!");
                 }
-              try
-              {
-                String sql = "INSERT INTO Orders (name, totalprice, timestamp) VALUES (?, ?, CURRENT_TIMESTAMP)";
-                PreparedStatement pStatement = conn.prepareStatement(sql);
-                pStatement.setString(1, orderItems.toString());
-                pStatement.setDouble(2, totalPrice);
-                pStatement.executeUpdate();
-                pStatement.close();
-                JOptionPane.showMessageDialog(this, "order submitted!\n" + "items: " + orderItems.toString() + "\ntotal price: $" + totalPrice);
-                orderArea.setText("");
-              }
-              catch(Exception e1)
-              {
-                JOptionPane.showMessageDialog(this, "submitting order failed sad " + e1.getMessage());
-              }
-            }
-                
+                else
+                {
+                    String[] lines = orderText.split("\\n");
+                    double totalPrice = 0.0;
+                    StringBuilder orderItems = new StringBuilder();
+
+                    for (String line : lines)
+                    {
+                        String[] parts = line.split(" - \\$");
+                        if (parts.length == 2)
+                        {
+                            String itemName = parts[0].trim();
+                            double price = 0.0;
+                            try
+                            {
+                                price = Double.parseDouble(parts[1].trim());
+                            } catch (NumberFormatException numberFormatIssue)
+                            {
+                                continue;
+                            }
+                            totalPrice += price;
+                            if (orderItems.length() > 0)
+                            {
+                                orderItems.append(", ");
+                            }
+                            orderItems.append(itemName);
+                        }
+                    }
+                    try
+                    {
+                        String sql = "INSERT INTO Orders (name, totalprice, timestamp) VALUES (?, ?, CURRENT_TIMESTAMP)";
+                        PreparedStatement pStatement = conn.prepareStatement(sql);
+                        pStatement.setString(1, orderItems.toString());
+                        pStatement.setDouble(2, totalPrice);
+                        pStatement.executeUpdate();
+                        pStatement.close();
+                        JOptionPane.showMessageDialog(this, "order submitted!\n" + "items: " + orderItems.toString() + "\ntotal price: $" + totalPrice);
+                        orderArea.setText("");
+                    }
+                    catch(Exception e1)
+                    {
+                        JOptionPane.showMessageDialog(this, "submitting order failed sad " + e1.getMessage());
+                    }
+                }
+
             default:
                 break;
-          }
+        }
     }
     //connection to database
-    private static void connectToDatabase() 
+    private static void connectToDatabase()
     {
-      String databaseName = "team_11_db";
-      String databaseUser = "team_11";
-      String databasePassword = "bayleef93"; 
-      String url = String.format("jdbc:postgresql://csce-315-db.engr.tamu.edu/%s", databaseName);
+        String databaseName = "team_11_db";
+        String databaseUser = "team_11";
+        String databasePassword = "bayleef93";
+        String url = String.format("jdbc:postgresql://csce-315-db.engr.tamu.edu/%s", databaseName);
 
-      try 
-      {
-          conn = DriverManager.getConnection(url, databaseUser, databasePassword);
-          JOptionPane.showMessageDialog(null, "Opened database successfully");
-      } 
-      catch (Exception e) 
-      {
-          e.printStackTrace();
-          JOptionPane.showMessageDialog(null, "Error: " + e.getMessage());
-          System.exit(0);
-      }
-  }
-  //close connection
-  private void closeConnection() 
-  {
-    try 
-    {
-        if (conn != null) 
+        try
         {
-            conn.close();
-            JOptionPane.showMessageDialog(this, "Connection Closed.");
+            conn = DriverManager.getConnection(url, databaseUser, databasePassword);
+            JOptionPane.showMessageDialog(null, "Opened database successfully");
         }
-    } 
-    catch (Exception e) 
-    {
-        JOptionPane.showMessageDialog(this, "Connection NOT Closed: " + e.getMessage());
+        catch (Exception e)
+        {
+            e.printStackTrace();
+            JOptionPane.showMessageDialog(null, "Error: " + e.getMessage());
+            System.exit(0);
+        }
     }
-}
-    
-}
+    //close connection
+    private void closeConnection()
+    {
+        try
+        {
+            if (conn != null)
+            {
+                conn.close();
+                JOptionPane.showMessageDialog(this, "Connection Closed.");
+            }
+        }
+        catch (Exception e)
+        {
+            JOptionPane.showMessageDialog(this, "Connection NOT Closed: " + e.getMessage());
+        }
+    }
+}}
