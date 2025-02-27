@@ -166,8 +166,8 @@ public class GUI extends JFrame implements ActionListener {
       //add buttons for managing inventory
         JPanel inventoryButtonsPanel = new JPanel(new FlowLayout());
 
-        JButton addButton = new JButton("Add Item");
-        JButton removeButton = new JButton("Remove Item");
+        JButton addButton = new JButton("Add Inventory");
+        JButton removeButton = new JButton("Remove Inventory");
 
         inventoryButtonsPanel.add(addButton);
         inventoryButtonsPanel.add(removeButton);
@@ -176,21 +176,28 @@ public class GUI extends JFrame implements ActionListener {
 
         //add inventory button actions
         addButton.addActionListener(evt -> {
+            JTextField itemId = new JTextField();
             JTextField itemNameField = new JTextField();
             JTextField qtyField = new JTextField();
-            Object[] message = {"Item Name:", itemNameField, "Quantity:", qtyField};
-            int option = JOptionPane.showConfirmDialog(null, message, "Add New Item", JOptionPane.OK_CANCEL_OPTION);
+            Object[] message = {"ID: ", itemId, "Inventory Name:", itemNameField, "Quantity:", qtyField};
+            int option = JOptionPane.showConfirmDialog(null, message, "Add New Inventory", JOptionPane.OK_CANCEL_OPTION);
             if(option == JOptionPane.OK_OPTION) {
+                int itemIdInt = Integer.parseInt(itemId.getText());
                 String itemName = itemNameField.getText();
                 int qty = Integer.parseInt(qtyField.getText());
-                addInventoryItem(itemName, qty);
+                addInventoryItem(itemIdInt, itemName, qty);
                 populateInventoryTable(inventoryTableModel);
             }
         });
         removeButton.addActionListener(evt -> {
-            String itemName = (String) JOptionPane.showInputDialog(null, "Item Name:", "Remove Item", JOptionPane.PLAIN_MESSAGE);
-            if(itemName != null) {
-                removeInventoryItem(itemName);
+            JTextField itemId = new JTextField();
+            JTextField itemNameField = new JTextField();
+            Object[] message = {"ID: ", itemId, "Inventory Name:", itemNameField};
+            int option =  JOptionPane.showConfirmDialog(null, message, "Remove Item", JOptionPane.OK_CANCEL_OPTION);
+            if(option == JOptionPane.OK_OPTION) {
+                int itemIdInt = Integer.parseInt(itemId.getText());
+                String itemName = itemNameField.getText();
+                removeInventoryItem(itemIdInt, itemName);
                 populateInventoryTable(inventoryTableModel);
             }
         });
@@ -541,15 +548,16 @@ public class GUI extends JFrame implements ActionListener {
         managerPanel.repaint();
     }
 
-    private void addInventoryItem(String name, int qty)
+    private void addInventoryItem(int id, String name, int qty)
     {
         if (conn == null) {
             return;
         }
-        String sql = "INSERT INTO inventory (id, name, qty) VALUES (27, ?, ?)";
+        String sql = "INSERT INTO inventory (id, name, qty) VALUES (?, ?, ?)";
         try (PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setString(1, name);
-            stmt.setInt(2, qty);
+            stmt.setInt(1, id);
+            stmt.setString(2, name);
+            stmt.setInt(3, qty);
             stmt.executeUpdate();
         } catch (SQLException e) {
             e.printStackTrace();
@@ -558,16 +566,17 @@ public class GUI extends JFrame implements ActionListener {
         }
     }
 
-    private void removeInventoryItem(String name)
+    private void removeInventoryItem(int itemId, String name)
     {
         if (conn == null)
         {
             return;
         }
-        String sql = "DELETE FROM inventory WHERE name = ?";
+        String sql = "DELETE FROM inventory WHERE id = ? AND name = ?";
         try (PreparedStatement stmt = conn.prepareStatement(sql))
         {
-            stmt.setString(1, name);
+            stmt.setInt(1, itemId);
+            stmt.setString(2, name);
             stmt.executeUpdate();
         }
         catch (SQLException e)
@@ -893,5 +902,4 @@ public class GUI extends JFrame implements ActionListener {
         JOptionPane.showMessageDialog(this, "Connection NOT Closed: " + e.getMessage());
     }
 }
-    
 }
