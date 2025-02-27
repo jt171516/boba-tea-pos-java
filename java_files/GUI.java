@@ -185,24 +185,43 @@ public class GUI extends JFrame implements ActionListener {
         });
 
       // ----- Right: Orders -----
-      String[] ordersColumns = {"Product", "Order #", "Quantity", "Arrival"};
-      Object[][] ordersData = {
-          {"Item 5", "#11111", 1000, "2/10/25"},
-          {"Item 6", "#11111", 1000, "2/10/25"},
-          {"Item 7", "#22222", 500,  "2/15/25"},
-          {"Item 8", "#22222", 500,  "2/15/25"}
-      };
+      String[] itemColumns = {"ID", "Name", "Price", "Calories", "Sales"};
+      DefaultTableModel itemTableModel = new DefaultTableModel(itemColumns, 0);
 
-      JTable ordersTable = new JTable(ordersData, ordersColumns);
-      JScrollPane ordersScrollPane = new JScrollPane(ordersTable);
+      JTable itemTable = new JTable(itemTableModel);
+      JScrollPane itemScrollPane = new JScrollPane(itemTable);
 
-      JPanel ordersPanel = new JPanel(new BorderLayout());
-      ordersPanel.setBorder(BorderFactory.createTitledBorder("Orders"));
-      ordersPanel.add(ordersScrollPane, BorderLayout.CENTER);
+      // We can wrap the table in a panel with a title
+      JPanel itemPanel = new JPanel(new BorderLayout());
+      itemPanel.setBorder(BorderFactory.createTitledBorder("Items"));
+      itemPanel.add(itemScrollPane, BorderLayout.CENTER);
+
+      // Add button for managing items
+      JButton manageItemsButton = new JButton("Manage Items");
+      JButton removeItemsButton = new JButton("Remove Items");
+      JPanel itemButtonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
+      itemButtonPanel.add(manageItemsButton);
+      itemButtonPanel.add(removeItemsButton);
+      itemPanel.add(itemButtonPanel, BorderLayout.SOUTH);
+
+      // Add event listener for manage items button
+      manageItemsButton.addActionListener(evt -> {
+         itemManagement(itemTableModel);
+      });
+      removeItemsButton.addActionListener(evt -> {
+          String itemID = (String) JOptionPane.showInputDialog(null, "Item ID:", "Remove Item", JOptionPane.PLAIN_MESSAGE);
+              if(itemID != null) {
+                  removeItem(Integer.parseInt(itemID));
+                  loadItemsManager(itemTableModel);
+            }
+      });
+
+      // Load items
+      loadItemsManager(itemTableModel);
 
       // Add both sub-panels to bottomPanel
       bottomPanel.add(inventoryPanel);
-      bottomPanel.add(ordersPanel);
+      bottomPanel.add(itemPanel);
 
       // === ASSEMBLE EVERYTHING ===
       managerPanel.add(topPanel, BorderLayout.NORTH);
@@ -406,6 +425,26 @@ public class GUI extends JFrame implements ActionListener {
         }
     }
 
+    private void removeItem(int id)
+    {
+        if (conn == null)
+        {
+            return;
+        }
+        String sql = "DELETE FROM item WHERE id = ?";
+        try (PreparedStatement stmt = conn.prepareStatement(sql))
+        {
+            stmt.setInt(1, id);
+            stmt.executeUpdate();
+        }
+        catch (SQLException e)
+        {
+            e.printStackTrace();
+            JOptionPane.showMessageDialog(this, "Error executing query: " + e.getMessage());
+            return;
+        }
+    }
+
     private void populateInventoryTable(DefaultTableModel inventoryTableModel)
     {
         if (conn == null)
@@ -436,6 +475,159 @@ public class GUI extends JFrame implements ActionListener {
             return;
         }
     }
+
+    private void loadItemsManager(DefaultTableModel model) {
+        if (conn == null) {
+            return;
+        }
+
+        // Clear existing data
+        while (model.getRowCount() > 0) {
+            model.removeRow(0);
+        }
+
+        try {
+            Statement stmt = conn.createStatement();
+            String sqlStatement = "SELECT * FROM Item";
+            ResultSet rs = stmt.executeQuery(sqlStatement);
+
+            while (rs.next()) {
+                // Get data from the current row
+                Integer id = rs.getInt("id");
+                String name = rs.getString("name");
+                Integer price = rs.getInt("price");
+                Integer calories = rs.getInt("calories");
+                Integer sales = rs.getInt("sales");
+
+                model.addRow(new Object[]{id, name, price, calories, sales});
+            }
+            rs.close();
+            stmt.close();
+        }
+        catch (Exception e) {
+            JOptionPane.showMessageDialog(this, "LOADING MENU ITEMS ERROR sad " + e.getMessage());
+        }
+    }
+
+    private void itemManagement(DefaultTableModel model) {
+        JDialog dialog = new JDialog(this, "Manage Items");
+        dialog.setSize(400, 300);
+
+        JPanel mainPanel = new JPanel(new BorderLayout(10, 10));
+        mainPanel.setBorder(new EmptyBorder(10, 10, 10, 10));
+
+        JPanel fieldsPanel = new JPanel(new GridLayout(2, 5, 10, 10));
+
+        JTextField idField = new JTextField();
+        JTextField nameField = new JTextField();
+        JTextField priceField = new JTextField();
+        JTextField caloriesField = new JTextField();
+        JTextField salesField = new JTextField();
+
+        fieldsPanel.add(new JLabel("ID:", JLabel.CENTER));
+        fieldsPanel.add(new JLabel("Name:", JLabel.CENTER));
+        fieldsPanel.add(new JLabel("Price:", JLabel.CENTER));
+        fieldsPanel.add(new JLabel("Calories:", JLabel.CENTER));
+        fieldsPanel.add(new JLabel("Sales:", JLabel.CENTER));
+
+        fieldsPanel.add(idField);
+        fieldsPanel.add(nameField);
+        fieldsPanel.add(priceField);
+        fieldsPanel.add(caloriesField);
+        fieldsPanel.add(salesField);
+
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 0));
+        JButton addEditButton = new JButton("Add/Edit Item");
+        JButton cancelButton = new JButton("Cancel");
+
+        buttonPanel.add(addEditButton);
+        buttonPanel.add(cancelButton);
+
+        mainPanel.add(fieldsPanel, BorderLayout.CENTER);
+        mainPanel.add(buttonPanel, BorderLayout.SOUTH);
+
+        dialog.add(mainPanel);
+
+        addEditButton.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                try {
+                    int itemID = Integer.parseInt(idField.getText());
+                    String itemName = nameField.getText();
+                    String itemPrice = priceField.getText();
+                    String itemCalories = caloriesField.getText();
+                    String itemSale = salesField.getText();
+
+                    boolean idExists = checkItemID(itemID);
+
+                    if (idExists) {
+                        if (!itemPrice.isEmpty()) {
+                            try {
+                                Statement stmt = conn.createStatement();
+                                String updatePrice = "UPDATE Item SET price=" + itemPrice + " WHERE id=" + itemID;
+
+                                stmt.executeUpdate(updatePrice);
+                                JOptionPane.showMessageDialog(dialog, "Item price updated");
+                                stmt.close();
+                            }
+                            catch (Exception ex) {
+                                JOptionPane.showMessageDialog(dialog, "Error updating price: " + ex.getMessage());
+                            }
+                        }
+                    }
+                    else {
+                        try {
+                            Statement stmt = conn.createStatement();
+                            String insertItem = "INSERT INTO Item (id, name, price, calories, sales) VALUES (" + itemID + ", '" + itemName + "', " + itemPrice + ", " + itemCalories + ", " + itemSale + ")";
+
+                            stmt.executeUpdate(insertItem);
+                            JOptionPane.showMessageDialog(dialog, "New item added");
+                            stmt.close();
+                        }
+                        catch (Exception ex) {
+                            JOptionPane.showMessageDialog(dialog, "Error adding new item: " + ex.getMessage());
+                        }
+                    }
+
+                    loadItemsManager(model);
+                    dialog.dispose();
+                }
+                catch (NumberFormatException ex) {
+                    JOptionPane.showMessageDialog(dialog,
+                            "Please enter valid numbers for ID, Price, Calories, and Sales");
+                }
+            }
+        });
+
+        cancelButton.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                dialog.dispose();
+            }
+        });
+
+        dialog.setLocationRelativeTo(this);
+        dialog.setVisible(true);
+    }
+
+    private boolean checkItemID(int itemID) {
+        boolean exists = false;
+        try {
+            Statement stmt = conn.createStatement();
+            String sql = "SELECT EXISTS(SELECT 1 FROM Item WHERE id = " + itemID + ")";
+            ResultSet rs = stmt.executeQuery(sql);
+
+            if (rs.next()) {
+                exists = rs.getBoolean(1);
+            }
+
+            rs.close();
+            stmt.close();
+        }
+        catch (Exception e) {
+            JOptionPane.showMessageDialog(this, "Error checking item existence: " + e.getMessage());
+        }
+        return exists;
+    }
+
     //action listener
     @Override
     public void actionPerformed(ActionEvent e) 
