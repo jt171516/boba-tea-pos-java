@@ -26,6 +26,17 @@ public class GUI extends JFrame implements ActionListener {
     //MANAGER PANEL
     private JPanel managerPanel;
 
+    //MANAGE EMPLOYEES PANEL
+    private JPanel employeesPanel;
+    private JTable employeesTable;
+    private DefaultTableModel employeesTableModel;
+
+    // For adding a new employee
+    private JTextField empNameField;
+    private JCheckBox managerCheckBox;
+    private JButton addEmployeeButton;
+    private JButton deleteEmployeeButton;
+
     public static void main(String[] args) 
     {
       connectToDatabase();
@@ -54,6 +65,9 @@ public class GUI extends JFrame implements ActionListener {
       buildManagerPanel();
       tabbedPane.addTab("Manager", managerPanel);
 
+      //employee management tab
+      buildEmployeeManagementPanel();
+      tabbedPane.addTab("Employees", employeesPanel);
       //exit button
       closeButton = new JButton("Close");
       closeButton.addActionListener(this);
@@ -189,8 +203,150 @@ public class GUI extends JFrame implements ActionListener {
       topPanel.add(new JLabel("Select Week:"));
       topPanel.add(weekComboBox);
       topPanel.add(salesReportButton);
-  }
-
+    }
+    private void buildEmployeeManagementPanel() {
+        employeesPanel = new JPanel(new BorderLayout(10, 10));
+        employeesPanel.setBorder(new EmptyBorder(10, 10, 10, 10));
+    
+        // Form to add a new employee using GridBagLayout for better control
+        JPanel addPanel = new JPanel(new GridBagLayout());
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(5, 5, 5, 5); // Padding
+        gbc.anchor = GridBagConstraints.WEST;
+    
+        // Name label and field
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        addPanel.add(new JLabel("Name:"), gbc);
+    
+        gbc.gridx = 1;
+        empNameField = new JTextField(15); // Increased column size for better visibility
+        addPanel.add(empNameField, gbc);
+    
+        // Manager checkbox
+        gbc.gridx = 2;
+        managerCheckBox = new JCheckBox("Manager");
+        addPanel.add(managerCheckBox, gbc);
+    
+        // Add Employee button
+        gbc.gridx = 3;
+        addEmployeeButton = new JButton("Add Employee");
+        addEmployeeButton.addActionListener(e -> addEmployee());
+        addPanel.add(addEmployeeButton, gbc);
+    
+        // Table setup remains the same
+        String[] columns = { "ID", "Name", "Manager" };
+        employeesTableModel = new DefaultTableModel(columns, 0);
+        employeesTable = new JTable(employeesTableModel);
+        JScrollPane tableScroll = new JScrollPane(employeesTable);
+    
+        // Delete button setup remains the same
+        JPanel bottomPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        deleteEmployeeButton = new JButton("Delete Selected");
+        deleteEmployeeButton.addActionListener(e -> deleteSelectedEmployee());
+        bottomPanel.add(deleteEmployeeButton);
+    
+        // Assemble the employeesPanel
+        employeesPanel.add(addPanel, BorderLayout.NORTH);
+        employeesPanel.add(tableScroll, BorderLayout.CENTER);
+        employeesPanel.add(bottomPanel, BorderLayout.SOUTH);
+    
+        loadAllEmployees();
+    }
+    private void loadAllEmployees() {
+        // Clear old data
+        employeesTableModel.setRowCount(0);
+    
+        String sql = "SELECT id, name, manager FROM employee"; 
+        try (Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+            while (rs.next()) {
+                int id = rs.getInt("id");
+                String name = rs.getString("name");
+                boolean isManager = rs.getBoolean("manager");
+                
+                // Convert boolean to string or keep it boolean
+                employeesTableModel.addRow(new Object[]{id, name, isManager});
+            }
+        } catch (SQLException e) {
+            JOptionPane.showMessageDialog(this, "Error loading employees: " + e.getMessage());
+        }
+    }
+    private void addEmployee() {
+        String name = empNameField.getText().trim();
+        boolean isManager = managerCheckBox.isSelected();
+    
+        if (name.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Please enter a name.");
+            return;
+        }
+    
+        // 1) get nextId
+        int nextId = 0;
+        String getMaxIdSQL = "SELECT COALESCE(MAX(id), 0) + 1 AS next_id FROM employee";
+        try (Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(getMaxIdSQL)) {
+            if (rs.next()) {
+                nextId = rs.getInt("next_id");
+            }
+        } catch (SQLException ex) {
+            JOptionPane.showMessageDialog(this, "Error getting next ID: " + ex.getMessage());
+            return;
+        }
+    
+        // 2) Insert row with nextId
+        String sql = "INSERT INTO employee (id, name, manager) VALUES (?, ?, ?)";
+        try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setInt(1, nextId);
+            pstmt.setString(2, name);
+            pstmt.setBoolean(3, isManager);
+            pstmt.executeUpdate();
+    
+            // 3) refresh
+            loadAllEmployees();
+    
+            // 4) clear UI
+            empNameField.setText("");
+            managerCheckBox.setSelected(false);
+    
+            JOptionPane.showMessageDialog(this, "Employee added successfully (ID=" + nextId + ")!");
+        } catch (SQLException ex) {
+            JOptionPane.showMessageDialog(this, "Error adding employee: " + ex.getMessage());
+        }
+    }
+    
+    private void deleteSelectedEmployee() {
+        int selectedRow = employeesTable.getSelectedRow();
+        if (selectedRow < 0) {
+            JOptionPane.showMessageDialog(this, "Please select an employee to delete.");
+            return;
+        }
+    
+        // ID is in the first column (index 0)
+        int employeeId = (int) employeesTableModel.getValueAt(selectedRow, 0);
+    
+        int confirm = JOptionPane.showConfirmDialog(
+            this,
+            "Are you sure you want to delete this employee (ID=" + employeeId + ")?",
+            "Delete Employee",
+            JOptionPane.YES_NO_OPTION
+        );
+    
+        if (confirm == JOptionPane.YES_OPTION) {
+            String sql = "DELETE FROM employee WHERE id = ?";
+            try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
+                pstmt.setInt(1, employeeId);
+                pstmt.executeUpdate();
+    
+                // Refresh table
+                loadAllEmployees();
+    
+                JOptionPane.showMessageDialog(this, "Employee deleted successfully!");
+            } catch (SQLException e) {
+                JOptionPane.showMessageDialog(this, "Error deleting employee: " + e.getMessage());
+            }
+        }
+    }
     private void loadAllMenuItemsForCashier() 
     {
       if (conn == null) 
