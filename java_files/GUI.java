@@ -892,6 +892,3 @@ public class GUI extends JFrame implements ActionListener {
     {
         JOptionPane.showMessageDialog(this, "Connection NOT Closed: " + e.getMessage());
     }
-}
-    
-}
