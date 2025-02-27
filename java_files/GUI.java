@@ -136,20 +136,53 @@ public class GUI extends JFrame implements ActionListener {
       // ----- Left :Inventory -----
       // Example table data
       String[] inventoryColumns = {"Product", "Stock", "Sales", "Status"};
-      Object[][] inventoryData = {
-          {"Item 1", 100, 1400, "Refill Recommended"},
-          {"Item 2", 200, 1000, "Refill Recommended"},
-          {"Item 3", 200, 700,  "Refill Recommended"},
-          {"Item 4", 500, 200,  ""}
-      };
+      DefaultTableModel inventoryTableModel = new DefaultTableModel(inventoryColumns, 0);
 
-      JTable inventoryTable = new JTable(inventoryData, inventoryColumns);
+      JTable inventoryTable = new JTable(inventoryTableModel);
       JScrollPane inventoryScrollPane = new JScrollPane(inventoryTable);
 
       // We can wrap the table in a panel with a title
       JPanel inventoryPanel = new JPanel(new BorderLayout());
       inventoryPanel.setBorder(BorderFactory.createTitledBorder("Inventory"));
       inventoryPanel.add(inventoryScrollPane, BorderLayout.CENTER);
+
+      //populates the inventory table with the inventory from the database
+      populateInventoryTable(inventoryTableModel);
+
+      //add buttons for managing inventory
+        JPanel inventoryButtonsPanel = new JPanel(new FlowLayout());
+
+        JButton addButton = new JButton("Add Item");
+        JButton removeButton = new JButton("Remove Item");
+
+        addButton.setPreferredSize(new Dimension(100, 8));
+        removeButton.setPreferredSize(new Dimension(120, 8));
+
+        inventoryButtonsPanel.add(addButton);
+        inventoryButtonsPanel.add(removeButton);
+
+        inventoryPanel.add(inventoryButtonsPanel, BorderLayout.SOUTH);
+
+        //add inventory button actions
+        addButton.addActionListener(evt -> {
+            JTextField itemNameField = new JTextField();
+            JTextField qtyField = new JTextField();
+            Object[] message = {"Item Name:", itemNameField, "Quantity:", qtyField};
+            int option = JOptionPane.showConfirmDialog(null, message, "Add New Item", JOptionPane.OK_CANCEL_OPTION);
+            if(option == JOptionPane.OK_OPTION) {
+                String itemName = itemNameField.getText();
+                int qty = Integer.parseInt(qtyField.getText());
+                addInventoryItem(itemName, qty);
+                populateInventoryTable(inventoryTableModel);
+            }
+        });
+        removeButton.addActionListener(evt -> {
+            String itemName = (String) JOptionPane.showInputDialog(null, "Item Name:", "Remove Item", JOptionPane.PLAIN_MESSAGE);
+            if(itemName != null) {
+                removeInventoryItem(itemName);
+                populateInventoryTable(inventoryTableModel);
+            }
+        });
 
       // ----- Right: Orders -----
       String[] ordersColumns = {"Product", "Order #", "Quantity", "Arrival"};
@@ -230,6 +263,7 @@ public class GUI extends JFrame implements ActionListener {
         JOptionPane.showMessageDialog(this, "LOADING MENU ITEMS ERROR sad " + e.getMessage());
       }
     }
+
     private void searchMenuItemsForCashier(String query)
     {
       // \set query '%{param query here}%'
@@ -335,6 +369,73 @@ public class GUI extends JFrame implements ActionListener {
         managerPanel.repaint();
     }
 
+    private void addInventoryItem(String name, int qty)
+    {
+        if (conn == null) {
+            return;
+        }
+        String sql = "INSERT INTO inventory (id, name, qty) VALUES (27, ?, ?)";
+        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, name);
+            stmt.setInt(2, qty);
+            stmt.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+            JOptionPane.showMessageDialog(this, "Error executing query: " + e.getMessage());
+            return;
+        }
+    }
+
+    private void removeInventoryItem(String name)
+    {
+        if (conn == null)
+        {
+            return;
+        }
+        String sql = "DELETE FROM inventory WHERE name = ?";
+        try (PreparedStatement stmt = conn.prepareStatement(sql))
+        {
+            stmt.setString(1, name);
+            stmt.executeUpdate();
+        }
+        catch (SQLException e)
+        {
+            e.printStackTrace();
+            JOptionPane.showMessageDialog(this, "Error executing query: " + e.getMessage());
+            return;
+        }
+    }
+
+    private void populateInventoryTable(DefaultTableModel inventoryTableModel)
+    {
+        if (conn == null)
+        {
+            return;
+        }
+
+        String sql = "SELECT name, qty FROM inventory";
+
+        try (PreparedStatement invStmt = conn.prepareStatement(sql))
+        {
+            ResultSet result = invStmt.executeQuery();
+
+            while (result.next())
+            {
+                String invName = result.getString("name");
+                int stock = result.getInt("qty");
+                String status = (stock < 10) ? "Refill Recommended" : "";
+
+                inventoryTableModel.addRow(new Object[]{invName, stock, "-", status});
+            }
+            result.close();
+        }
+        catch (SQLException e)
+        {
+            e.printStackTrace();
+            JOptionPane.showMessageDialog(this, "Error executing query: " + e.getMessage());
+            return;
+        }
+    }
     //action listener
     @Override
     public void actionPerformed(ActionEvent e) 
