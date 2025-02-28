@@ -874,6 +874,7 @@ public class GUI extends JFrame implements ActionListener {
             case "Close":
                 closeConnection();
                 dispose();
+                System.exit(ABORT);
                 break;
             case "Login":
                 try {
