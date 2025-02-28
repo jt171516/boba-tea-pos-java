@@ -4,19 +4,25 @@ import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
 
 public class GUI extends JFrame implements ActionListener {
     static JFrame f;
+
+    
+    private static Connection conn = null;
+    //Tabbed Pane for manager menu
+    private JTabbedPane tabbedPane;
+    
+    //Live Date & Time Display
+    private JLabel dateTimeLabel;
 
     //Input fields for initial login screen
     static JTextField userIdField;
     static JPasswordField passwordField;
     static JButton loginButton;
-
-    private static Connection conn = null;
-    //Tabbed Pane for manager menu
-    private JTabbedPane tabbedPane;
-
+    
     //CASHIER PANEL
     private JPanel cashierPanel;
     private JTextField searchField;
@@ -25,6 +31,7 @@ public class GUI extends JFrame implements ActionListener {
     private JScrollPane menuItemsScroll;
     private JTextArea orderArea;
     private JButton submitOrderButton;
+    
     //close button
     private JButton closeButton;
 
@@ -44,69 +51,92 @@ public class GUI extends JFrame implements ActionListener {
 
     private static boolean isManager;
     
-        public static void main(String[] args)
-        {
-            connectToDatabase();
-            SwingUtilities.invokeLater(() -> showLoginPage());
+    public static void main(String[] args)
+    {
+        connectToDatabase();
+        SwingUtilities.invokeLater(() -> showLoginPage());
+    }
+
+    private void updateDateTime(){
+        Calendar calendar = Calendar.getInstance();
+
+        //day, month day, year
+        SimpleDateFormat dateFormatter = new SimpleDateFormat("EEE, MMM dd, yyyy");
+        String date = dateFormatter.format(calendar.getTime());
+
+        //hour, minute, am/pm
+        SimpleDateFormat timeFormatter = new SimpleDateFormat("hh:mm:ss:a");
+        String time = timeFormatter.format(calendar.getTime());
+
+        dateTimeLabel.setText(date + " " + time);
+    }
+
+    public GUI(boolean isManager)
+    {
+        super("Team 11 DB GUI");
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setSize(1000, 700);
+
+        //initialize panel
+        tabbedPane = new JTabbedPane();
+        add(tabbedPane, BorderLayout.CENTER);
+
+        //cashier panel
+        buildCashierPanel();
+        tabbedPane.addTab("Cashier", cashierPanel);
+
+        if (isManager){
+            //manager panel
+            buildManagerPanel();
+            tabbedPane.addTab("Manager", managerPanel);
+
+            //employee management tab
+            buildEmployeeManagementPanel();
+            tabbedPane.addTab("Employees", employeesPanel);
         }
-    
-        public GUI(boolean isManager)
-        {
-            super("Team 11 DB GUI");
-            setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-            setSize(1000, 700);
-    
-            //initialize panel
-            tabbedPane = new JTabbedPane();
-            add(tabbedPane, BorderLayout.CENTER);
-    
-            //cashier panel
-            buildCashierPanel();
-            tabbedPane.addTab("Cashier", cashierPanel);
-    
-            if (isManager){
-                //manager panel
-                buildManagerPanel();
-                tabbedPane.addTab("Manager", managerPanel);
-    
-                //employee management tab
-                buildEmployeeManagementPanel();
-                tabbedPane.addTab("Employees", employeesPanel);
-            }
-            //exit button
-            closeButton = new JButton("Close");
-            closeButton.addActionListener(this);
-            add(closeButton, BorderLayout.SOUTH);
-        }
-        
-        //create dedicated initial login page
-        public static void showLoginPage() {
-            f = new JFrame("Login");
-    
-            JPanel p = new JPanel();
-    
-            JLabel userIdLabel = new JLabel("User ID:");
-            userIdField = new JTextField(20);
-    
-            JLabel passwordLabel = new JLabel("Password:");
-            passwordField = new JPasswordField(20);
-    
-            loginButton = new JButton("Login");
-            loginButton.addActionListener(new GUI(isManager));
 
-            p.add(userIdLabel);
-            p.add(userIdField);
-            p.add(passwordLabel);
-            p.add(passwordField);
-            p.add(loginButton);
+        //add live date + clock to top border
+        dateTimeLabel = new JLabel();
+        updateDateTime();
+        add(dateTimeLabel, BorderLayout.NORTH);
 
-            f.add(p);
+        Timer timer = new Timer(1000, this);
+        timer.setActionCommand("updateDateTime");
+        timer.start();
 
-            f.setSize(1000, 700);
-            f.setVisible(true);
-            f.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        //exit button
+        closeButton = new JButton("Close");
+        closeButton.addActionListener(this);
+        add(closeButton, BorderLayout.SOUTH);
+    }
+    
+    //create dedicated initial login page
+    public static void showLoginPage() {
+        f = new JFrame("Login");
 
-        }
+        JPanel p = new JPanel();
+
+        JLabel userIdLabel = new JLabel("User ID:");
+        userIdField = new JTextField(20);
+
+        JLabel passwordLabel = new JLabel("Password:");
+        passwordField = new JPasswordField(20);
+
+        loginButton = new JButton("Login");
+        loginButton.addActionListener(new GUI(isManager));
+
+        p.add(userIdLabel);
+        p.add(userIdField);
+        p.add(passwordLabel);
+        p.add(passwordField);
+        p.add(loginButton);
+
+        f.add(p);
+
+        f.setSize(1000, 700);
+        f.setVisible(true);
+        f.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+    }
 
     public static void showMainPage(boolean isManager) {
         // Dispose the login frame
@@ -840,6 +870,10 @@ public class GUI extends JFrame implements ActionListener {
         String cmd = e.getActionCommand();
         switch (cmd)
         {
+            case "Close":
+                closeConnection();
+                dispose();
+                break;
             case "Login":
                 try {
 
@@ -849,7 +883,6 @@ public class GUI extends JFrame implements ActionListener {
 
                     if (result.next()) {
                         boolean isManager = result.getBoolean("manager");
-                        JOptionPane.showMessageDialog(null, "Login successful!");
                         showMainPage(isManager);
                     } else {
                         JOptionPane.showMessageDialog(null, "Invalid user ID.");
@@ -866,10 +899,6 @@ public class GUI extends JFrame implements ActionListener {
                         ex.printStackTrace();
                     }
                 }
-                break;
-            case "Close":
-                closeConnection();
-                dispose();
                 break;
             case "Search":
                 String query = searchField.getText().trim();
@@ -931,7 +960,10 @@ public class GUI extends JFrame implements ActionListener {
                         JOptionPane.showMessageDialog(this, "submitting order failed sad " + e1.getMessage());
                     }
                 }
-
+                break;
+            case "updateDateTime":
+                updateDateTime();
+                break;
             default:
                 break;
         }
