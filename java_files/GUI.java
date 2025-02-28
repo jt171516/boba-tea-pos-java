@@ -78,7 +78,8 @@ public class GUI extends JFrame implements ActionListener {
             closeButton.addActionListener(this);
             add(closeButton, BorderLayout.SOUTH);
         }
-    
+        
+        //create dedicated initial login page
         public static void showLoginPage() {
             f = new JFrame("Login");
     
@@ -93,55 +94,55 @@ public class GUI extends JFrame implements ActionListener {
             loginButton = new JButton("Login");
             loginButton.addActionListener(new GUI(isManager));
 
-        p.add(userIdLabel);
-        p.add(userIdField);
-        p.add(passwordLabel);
-        p.add(passwordField);
-        p.add(loginButton);
+            p.add(userIdLabel);
+            p.add(userIdField);
+            p.add(passwordLabel);
+            p.add(passwordField);
+            p.add(loginButton);
 
-        f.add(p);
+            f.add(p);
 
-        f.setSize(1000, 700);
-        f.setVisible(true);
-        f.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+            f.setSize(1000, 700);
+            f.setVisible(true);
+            f.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 
-        loginButton.addActionListener(new ActionListener() {
-            public void actionPerformed(ActionEvent e) {
-                String userId = userIdField.getText();
-                String password = new String(passwordField.getPassword()); //TODO: no password field in database schema
-        
-                //Building the connection
-                Connection conn = null;
-                String database_name = "team_11_db";
-                String database_url = String.format("jdbc:postgresql://csce-315-db.engr.tamu.edu/%s", database_name);
-                try {
-                    conn = DriverManager.getConnection(database_url, "team_11", "bayleef93");
-                    Statement stmt = conn.createStatement();
-                    String sqlStatement = String.format("SELECT * FROM employee WHERE name='%s'", userId);
-                    ResultSet result = stmt.executeQuery(sqlStatement);
-        
-                    if (result.next()) {
-                        boolean isManager = result.getBoolean("manager");
-                        JOptionPane.showMessageDialog(null, "Login successful!");
-                        showMainPage(isManager);
-                    } else {
-                        JOptionPane.showMessageDialog(null, "Invalid user ID.");
-                    }
-                } catch (Exception ex) {
-                    ex.printStackTrace();
-                    JOptionPane.showMessageDialog(null, "Error accessing Database.");
-                } finally {
+            loginButton.addActionListener(new ActionListener() {
+                public void actionPerformed(ActionEvent e) {
+                    String userId = userIdField.getText();
+                    String password = new String(passwordField.getPassword()); //TODO: no password field in database schema
+            
+                    //Building the connection
+                    Connection conn = null;
+                    String database_name = "team_11_db";
+                    String database_url = String.format("jdbc:postgresql://csce-315-db.engr.tamu.edu/%s", database_name);
                     try {
-                        if (conn != null) {
-                            conn.close();
+                        conn = DriverManager.getConnection(database_url, "team_11", "bayleef93");
+                        Statement stmt = conn.createStatement();
+                        String sqlStatement = String.format("SELECT * FROM employee WHERE name='%s'", userId);
+                        ResultSet result = stmt.executeQuery(sqlStatement);
+            
+                        if (result.next()) {
+                            boolean isManager = result.getBoolean("manager");
+                            JOptionPane.showMessageDialog(null, "Login successful!");
+                            showMainPage(isManager);
+                        } else {
+                            JOptionPane.showMessageDialog(null, "Invalid user ID.");
                         }
-                    } catch (SQLException ex) {
+                    } catch (Exception ex) {
                         ex.printStackTrace();
+                        JOptionPane.showMessageDialog(null, "Error accessing Database.");
+                    } finally {
+                        try {
+                            if (conn != null) {
+                                conn.close();
+                            }
+                        } catch (SQLException ex) {
+                            ex.printStackTrace();
+                        }
                     }
                 }
-            }
-        });
-    }
+            });
+        }
 
     public static void showMainPage(boolean isManager) {
         // Dispose the login frame
