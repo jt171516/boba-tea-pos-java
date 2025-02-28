@@ -878,7 +878,6 @@ public class GUI extends JFrame implements ActionListener {
                 break;
             case "Login":
                 try {
-
                     Statement stmt = conn.createStatement();
                     String sqlStatement = String.format("SELECT * FROM employee WHERE name='%s'", userIdField.getText());
                     ResultSet result = stmt.executeQuery(sqlStatement);
@@ -892,14 +891,6 @@ public class GUI extends JFrame implements ActionListener {
                 } catch (Exception ex) {
                     ex.printStackTrace();
                     JOptionPane.showMessageDialog(null, "Error accessing Database.");
-                } finally {
-                    try {
-                        if (conn != null) {
-                            conn.close();
-                        }
-                    } catch (SQLException ex) {
-                        ex.printStackTrace();
-                    }
                 }
                 break;
             case "Search":
@@ -981,7 +972,7 @@ public class GUI extends JFrame implements ActionListener {
         try
         {
             conn = DriverManager.getConnection(url, databaseUser, databasePassword);
-            JOptionPane.showMessageDialog(null, "Opened database successfully");
+            // JOptionPane.showMessageDialog(null, "Opened database successfully");
         }
         catch (Exception e)
         {
