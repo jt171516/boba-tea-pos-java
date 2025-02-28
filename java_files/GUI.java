@@ -25,6 +25,8 @@ public class GUI extends JFrame implements ActionListener {
 
     //MANAGER PANEL
     private JPanel managerPanel;
+    private DefaultTableModel inventoryTableModel;
+    private JComboBox<String> weekComboBox;
 
     //MANAGE EMPLOYEES PANEL
     private JPanel employeesPanel;
@@ -147,10 +149,10 @@ public class GUI extends JFrame implements ActionListener {
         // We'll put Inventory on the left, Orders on the right.
         JPanel bottomPanel = new JPanel(new GridLayout(1, 2, 10, 10));
 
-        // ----- Left :Inventory -----
-        // Example table data
+        // ----- Left: Inventory -----
+        //inventoryTable data
         String[] inventoryColumns = {"Product", "Stock", "Sales", "Status"};
-        DefaultTableModel inventoryTableModel = new DefaultTableModel(inventoryColumns, 0);
+        inventoryTableModel = new DefaultTableModel(inventoryColumns, 0);
 
         JTable inventoryTable = new JTable(inventoryTableModel);
         JScrollPane inventoryScrollPane = new JScrollPane(inventoryTable);
@@ -165,44 +167,17 @@ public class GUI extends JFrame implements ActionListener {
 
         //add buttons for managing inventory
         JPanel inventoryButtonsPanel = new JPanel(new FlowLayout());
-
         JButton addButton = new JButton("Add Inventory");
         JButton removeButton = new JButton("Remove Inventory");
-
         inventoryButtonsPanel.add(addButton);
         inventoryButtonsPanel.add(removeButton);
-
         inventoryPanel.add(inventoryButtonsPanel, BorderLayout.SOUTH);
 
         //add inventory button actions
-        addButton.addActionListener(evt -> {
-            JTextField itemId = new JTextField();
-            JTextField itemNameField = new JTextField();
-            JTextField qtyField = new JTextField();
-            Object[] message = {"ID: ", itemId, "Inventory Name:", itemNameField, "Quantity:", qtyField};
-            int option = JOptionPane.showConfirmDialog(null, message, "Add New Inventory", JOptionPane.OK_CANCEL_OPTION);
-            if(option == JOptionPane.OK_OPTION) {
-                int itemIdInt = Integer.parseInt(itemId.getText());
-                String itemName = itemNameField.getText();
-                int qty = Integer.parseInt(qtyField.getText());
-                addInventoryItem(itemIdInt, itemName, qty);
-                populateInventoryTable(inventoryTableModel);
-            }
-        });
-        removeButton.addActionListener(evt -> {
-            JTextField itemId = new JTextField();
-            JTextField itemNameField = new JTextField();
-            Object[] message = {"ID: ", itemId, "Inventory Name:", itemNameField};
-            int option =  JOptionPane.showConfirmDialog(null, message, "Remove Item", JOptionPane.OK_CANCEL_OPTION);
-            if(option == JOptionPane.OK_OPTION) {
-                int itemIdInt = Integer.parseInt(itemId.getText());
-                String itemName = itemNameField.getText();
-                removeInventoryItem(itemIdInt, itemName);
-                populateInventoryTable(inventoryTableModel);
-            }
-        });
+        addButton.addActionListener(this);
+        removeButton.addActionListener(this);
 
-        // ----- Right: Orders -----
+        // ----- Right: Items -----
         String[] itemColumns = {"ID", "Name", "Price", "Calories", "Sales"};
         DefaultTableModel itemTableModel = new DefaultTableModel(itemColumns, 0);
 
@@ -247,19 +222,17 @@ public class GUI extends JFrame implements ActionListener {
         managerPanel.add(bottomPanel, BorderLayout.SOUTH);
 
         //sales report panel for manager panel
-        JComboBox<String> weekComboBox = new JComboBox<>(new String[]{"1", "2", "3", "4", "5"});
+        weekComboBox = new JComboBox<>(new String[]{"1", "2", "3", "4", "5"});
         JButton salesReportButton = new JButton("Show Weekly Sales");
 
-        //add event listener to fetch sales data for the selected week
-        salesReportButton.addActionListener(evt -> {
-            int selectedWeek = Integer.parseInt((String) weekComboBox.getSelectedItem());
-            weeklySalesReport(selectedWeek);
-        });
+        //add action listener to fetch sales data for the selected week
+        salesReportButton.addActionListener(this);
 
         topPanel.add(new JLabel("Select Week:"));
         topPanel.add(weekComboBox);
         topPanel.add(salesReportButton);
     }
+
     private void buildEmployeeManagementPanel() {
         employeesPanel = new JPanel(new BorderLayout(10, 10));
         employeesPanel.setBorder(new EmptyBorder(10, 10, 10, 10));
@@ -548,7 +521,7 @@ public class GUI extends JFrame implements ActionListener {
         managerPanel.repaint();
     }
 
-    private void addInventoryItem(int id, String name, int qty)
+    public void addInventoryItem(int id, String name, int qty)
     {
         if (conn == null) {
             return;
@@ -607,7 +580,7 @@ public class GUI extends JFrame implements ActionListener {
         }
     }
 
-    private void populateInventoryTable(DefaultTableModel inventoryTableModel)
+    public void populateInventoryTable(DefaultTableModel inventoryTableModel)
     {
         if (conn == null)
         {
@@ -861,7 +834,37 @@ public class GUI extends JFrame implements ActionListener {
                         JOptionPane.showMessageDialog(this, "submitting order failed sad " + e1.getMessage());
                     }
                 }
-
+                break;
+            case "Add Inventory":
+                JTextField invAddId = new JTextField();
+                JTextField invAddName = new JTextField();
+                JTextField invAddQty = new JTextField();
+                Object[] addMsg = {"ID: ", invAddId, "Inventory Name:", invAddName, "Quantity:", invAddQty};
+                int addOption = JOptionPane.showConfirmDialog(null, addMsg, "Add New Inventory", JOptionPane.OK_CANCEL_OPTION);
+                if(addOption == JOptionPane.OK_OPTION) {
+                    int invAddIdInt = Integer.parseInt(invAddId.getText());
+                    String invAddNameText = invAddName.getText();
+                    int invAddQtyInt = Integer.parseInt(invAddQty.getText());
+                    addInventoryItem(invAddIdInt, invAddNameText, invAddQtyInt);
+                    populateInventoryTable(inventoryTableModel);
+                }
+                break;
+            case "Remove Inventory":
+                JTextField invRemoveId = new JTextField();
+                JTextField invRemoveName = new JTextField();
+                Object[] removeMsg = {"ID: ", invRemoveId, "Inventory Name:", invRemoveName};
+                int removeOption =  JOptionPane.showConfirmDialog(null, removeMsg, "Remove Item", JOptionPane.OK_CANCEL_OPTION);
+                if(removeOption == JOptionPane.OK_OPTION) {
+                    int invRemoveIdInt = Integer.parseInt(invRemoveId.getText());
+                    String invRemoveNameText = invRemoveName.getText();
+                    removeInventoryItem(invRemoveIdInt, invRemoveNameText);
+                    populateInventoryTable(inventoryTableModel);
+                }
+                break;
+            case "Show Weekly Sales":
+                int selectedWeek = Integer.parseInt((String) weekComboBox.getSelectedItem());
+                weeklySalesReport(selectedWeek);
+                break;
             default:
                 break;
         }
