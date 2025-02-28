@@ -42,52 +42,56 @@ public class GUI extends JFrame implements ActionListener {
     private JButton addEmployeeButton;
     private JButton deleteEmployeeButton;
 
-    public static void main(String[] args)
-    {
-        connectToDatabase();
-        SwingUtilities.invokeLater(() -> showLoginPage());
-    }
-
-    public GUI()
-    {
-        super("Team 11 DB GUI");
-        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setSize(1000, 700);
-
-        //initialize panel
-        tabbedPane = new JTabbedPane();
-        add(tabbedPane, BorderLayout.CENTER);
-
-        //cashier panel
-        buildCashierPanel();
-        tabbedPane.addTab("Cashier", cashierPanel);
-
-        //manager panel
-        buildManagerPanel();
-        tabbedPane.addTab("Manager", managerPanel);
-
-        //employee management tab
-        buildEmployeeManagementPanel();
-        tabbedPane.addTab("Employees", employeesPanel);
-        //exit button
-        closeButton = new JButton("Close");
-        closeButton.addActionListener(this);
-        add(closeButton, BorderLayout.SOUTH);
-    }
-
-    public static void showLoginPage() {
-        f = new JFrame("Login");
-
-        JPanel p = new JPanel();
-
-        JLabel userIdLabel = new JLabel("User ID:");
-        userIdField = new JTextField(20);
-
-        JLabel passwordLabel = new JLabel("Password:");
-        passwordField = new JPasswordField(20);
-
-        loginButton = new JButton("Login");
-        loginButton.addActionListener(new GUI());
+    private static boolean isManager;
+    
+        public static void main(String[] args)
+        {
+            connectToDatabase();
+            SwingUtilities.invokeLater(() -> showLoginPage());
+        }
+    
+        public GUI(boolean isManager)
+        {
+            super("Team 11 DB GUI");
+            setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+            setSize(1000, 700);
+    
+            //initialize panel
+            tabbedPane = new JTabbedPane();
+            add(tabbedPane, BorderLayout.CENTER);
+    
+            //cashier panel
+            buildCashierPanel();
+            tabbedPane.addTab("Cashier", cashierPanel);
+    
+            if (isManager){
+                //manager panel
+                buildManagerPanel();
+                tabbedPane.addTab("Manager", managerPanel);
+    
+                //employee management tab
+                buildEmployeeManagementPanel();
+                tabbedPane.addTab("Employees", employeesPanel);
+            }
+            //exit button
+            closeButton = new JButton("Close");
+            closeButton.addActionListener(this);
+            add(closeButton, BorderLayout.SOUTH);
+        }
+    
+        public static void showLoginPage() {
+            f = new JFrame("Login");
+    
+            JPanel p = new JPanel();
+    
+            JLabel userIdLabel = new JLabel("User ID:");
+            userIdField = new JTextField(20);
+    
+            JLabel passwordLabel = new JLabel("Password:");
+            passwordField = new JPasswordField(20);
+    
+            loginButton = new JButton("Login");
+            loginButton.addActionListener(new GUI(isManager));
 
         p.add(userIdLabel);
         p.add(userIdField);
@@ -117,8 +121,9 @@ public class GUI extends JFrame implements ActionListener {
                     ResultSet result = stmt.executeQuery(sqlStatement);
         
                     if (result.next()) {
+                        boolean isManager = result.getBoolean("manager");
                         JOptionPane.showMessageDialog(null, "Login successful!");
-                        showMainPage();
+                        showMainPage(isManager);
                     } else {
                         JOptionPane.showMessageDialog(null, "Invalid user ID.");
                     }
@@ -138,12 +143,12 @@ public class GUI extends JFrame implements ActionListener {
         });
     }
 
-    public static void showMainPage() {
+    public static void showMainPage(boolean isManager) {
         // Dispose the login frame
         f.dispose();
 
         // Create the main application frame
-        GUI app = new GUI();
+        GUI app = new GUI(isManager);
         app.setVisible(true);
     }
 
