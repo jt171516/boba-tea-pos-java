@@ -8,6 +8,11 @@ import java.awt.*;
 public class GUI extends JFrame implements ActionListener {
     static JFrame f;
 
+    //Input fields for initial login screen
+    static JTextField userIdField;
+    static JPasswordField passwordField;
+    static JButton loginButton;
+
     private static Connection conn = null;
     //Tabbed Pane for manager menu
     private JTabbedPane tabbedPane;
@@ -40,11 +45,7 @@ public class GUI extends JFrame implements ActionListener {
     public static void main(String[] args)
     {
         connectToDatabase();
-        SwingUtilities.invokeLater(() ->
-        {
-            GUI app = new GUI();
-            app.setVisible(true);
-        });
+        SwingUtilities.invokeLater(() -> showLoginPage());
     }
 
     public GUI()
@@ -72,6 +73,78 @@ public class GUI extends JFrame implements ActionListener {
         closeButton = new JButton("Close");
         closeButton.addActionListener(this);
         add(closeButton, BorderLayout.SOUTH);
+    }
+
+    public static void showLoginPage() {
+        f = new JFrame("Login");
+
+        JPanel p = new JPanel();
+
+        JLabel userIdLabel = new JLabel("User ID:");
+        userIdField = new JTextField(20);
+
+        JLabel passwordLabel = new JLabel("Password:");
+        passwordField = new JPasswordField(20);
+
+        loginButton = new JButton("Login");
+        loginButton.addActionListener(new GUI());
+
+        p.add(userIdLabel);
+        p.add(userIdField);
+        p.add(passwordLabel);
+        p.add(passwordField);
+        p.add(loginButton);
+
+        f.add(p);
+
+        f.setSize(1000, 700);
+        f.setVisible(true);
+        f.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+
+        loginButton.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                String userId = userIdField.getText();
+                String password = new String(passwordField.getPassword()); //TODO: no password field in database schema
+        
+                //Building the connection
+                Connection conn = null;
+                String database_name = "team_11_db";
+                String database_url = String.format("jdbc:postgresql://csce-315-db.engr.tamu.edu/%s", database_name);
+                try {
+                    conn = DriverManager.getConnection(database_url, "team_11", "bayleef93");
+                    Statement stmt = conn.createStatement();
+                    String sqlStatement = String.format("SELECT * FROM employee WHERE name='%s'", userId);
+                    ResultSet result = stmt.executeQuery(sqlStatement);
+        
+                    if (result.next()) {
+                        JOptionPane.showMessageDialog(null, "Login successful!");
+                        showMainPage();
+                    } else {
+                        JOptionPane.showMessageDialog(null, "Invalid user ID.");
+                    }
+                } catch (Exception ex) {
+                    ex.printStackTrace();
+                    JOptionPane.showMessageDialog(null, "Error accessing Database.");
+                } finally {
+                    try {
+                        if (conn != null) {
+                            conn.close();
+                        }
+                    } catch (SQLException ex) {
+                        ex.printStackTrace();
+                    }
+                }
+            }
+        });
+    }
+
+    public static void showMainPage() {
+        // Dispose the login frame
+        f.dispose();
+
+        // Create the main application frame
+        GUI app = new GUI();
+        app.setVisible(true);
     }
 
     private void buildCashierPanel()
