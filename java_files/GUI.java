@@ -130,6 +130,7 @@ public class GUI extends JFrame implements ActionListener {
         p.add(passwordLabel);
         p.add(passwordField);
         p.add(loginButton);
+        p.add(new JLabel(new ImageIcon("../images/logo.png")));
 
         f.add(p);
 
