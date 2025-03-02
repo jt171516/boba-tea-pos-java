@@ -2,6 +2,7 @@ import java.sql.*;
 import java.awt.event.*;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
+import javax.swing.event.TableModelEvent;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 
@@ -263,13 +264,38 @@ public class GUI extends JFrame implements ActionListener {
         addEmployeeButton.addActionListener(e -> addEmployee());
         addPanel.add(addEmployeeButton, gbc);
 
-        // Table setup remains the same
+        // Table setup 
         String[] columns = { "ID", "Name", "Manager" };
-        employeesTableModel = new DefaultTableModel(columns, 0);
+        employeesTableModel = new DefaultTableModel(columns, 0) {
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return column != 0; // ID column is not editable
+            }
+            @Override
+            public Class<?> getColumnClass(int columnIndex) {
+                if (columnIndex == 2) { // Manager column is Boolean
+                    return Boolean.class;
+                }
+                return super.getColumnClass(columnIndex);
+            }
+        };
         employeesTable = new JTable(employeesTableModel);
         JScrollPane tableScroll = new JScrollPane(employeesTable);
-
-        // Delete button setup remains the same
+        employeesTableModel.addTableModelListener(e -> {
+            if (e.getType() == TableModelEvent.UPDATE) {
+                int row = e.getFirstRow();
+                int column = e.getColumn();
+                int id = (int) employeesTableModel.getValueAt(row, 0);
+                
+                if (column == 1) { // Name column
+                    String newName = (String) employeesTableModel.getValueAt(row, column);
+                    updateEmployeeName(id, newName);
+                } else if (column == 2) { // Manager column
+                    boolean isManager = (boolean) employeesTableModel.getValueAt(row, column);
+                    updateEmployeeManagerStatus(id, isManager);
+                }
+            }
+        });
         JPanel bottomPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         deleteEmployeeButton = new JButton("Delete Selected");
         deleteEmployeeButton.addActionListener(e -> deleteSelectedEmployee());
@@ -281,6 +307,28 @@ public class GUI extends JFrame implements ActionListener {
         employeesPanel.add(bottomPanel, BorderLayout.SOUTH);
 
         loadAllEmployees();
+    }
+    private void updateEmployeeName(int id, String newName) {
+        String sql = "UPDATE employee SET name = ? WHERE id = ?";
+        try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, newName);
+            pstmt.setInt(2, id);
+            pstmt.executeUpdate();
+        } catch (SQLException ex) {
+            JOptionPane.showMessageDialog(this, "Error updating name: " + ex.getMessage());
+            loadAllEmployees(); // Refresh data on error
+        }
+    }
+    private void updateEmployeeManagerStatus(int id, boolean isManager) {
+        String sql = "UPDATE employee SET manager = ? WHERE id = ?";
+        try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setBoolean(1, isManager);
+            pstmt.setInt(2, id);
+            pstmt.executeUpdate();
+        } catch (SQLException ex) {
+            JOptionPane.showMessageDialog(this, "Error updating manager status: " + ex.getMessage());
+            loadAllEmployees(); // Refresh data on error
+        }
     }
     private void loadAllEmployees() {
         // Clear old data
