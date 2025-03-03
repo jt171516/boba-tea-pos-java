@@ -3,6 +3,8 @@ import java.awt.event.*;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import javax.swing.event.TableModelEvent;
+import javax.swing.event.CellEditorListener;
+import javax.swing.event.ChangeEvent;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 
@@ -152,10 +154,18 @@ public class GUI extends JFrame implements ActionListener {
 
         // ----- Left: Inventory -----
         //inventoryTable data
-        String[] inventoryColumns = {"Product", "Stock", "Sales", "Status"};
-        inventoryTableModel = new DefaultTableModel(inventoryColumns, 0);
+        String[] inventoryColumns = {"ID","Product", "Stock", "Sales", "Status"};
+        inventoryTableModel = new DefaultTableModel(inventoryColumns, 0)
+        {
+            @Override
+            public boolean isCellEditable(int row, int col)
+            {
+                return col == 2;
+            }
+        };
 
         JTable inventoryTable = new JTable(inventoryTableModel);
+        inventoryTable.getColumn(inventoryColumns[0]).setPreferredWidth(20);
         JScrollPane inventoryScrollPane = new JScrollPane(inventoryTable);
 
         // We can wrap the table in a panel with a title
@@ -177,6 +187,36 @@ public class GUI extends JFrame implements ActionListener {
         //add inventory button actions
         addButton.addActionListener(this);
         removeButton.addActionListener(this);
+
+        //adding CellEditorListener to detect cell edits
+        inventoryTable.getDefaultEditor(String.class).addCellEditorListener(new CellEditorListener()
+        {
+            @Override
+            public void editingStopped(ChangeEvent e)
+            {
+                int row = inventoryTable.getSelectedRow();
+                int col = inventoryTable.getSelectedColumn();
+
+                //check to see if the selected column is the Stock column, since we only want this one to be modified
+                if (col == 2)
+                {
+                    //new stock value
+                    Object newValue = inventoryTable.getValueAt(row,col);
+                    //name of the inventory item that needs stock to be updated
+                    Object invName = inventoryTable.getValueAt(row,1);
+                    //update the database
+                    updateInventoryQuantity(Integer.parseInt(newValue.toString()), invName.toString());
+                    populateInventoryTable(inventoryTableModel);
+                    JOptionPane.showMessageDialog(null, "Quantity for " + invName + " was changed to: " + newValue);
+                }
+            }
+
+            @Override
+            public void editingCanceled(ChangeEvent e)
+            {
+                JOptionPane.showMessageDialog(null, "Cell Row Was Cancelled");
+            }
+        });
 
         // ----- Right: Items -----
         String[] itemColumns = {"ID", "Name", "Price", "Calories", "Sales"};
@@ -574,6 +614,26 @@ public class GUI extends JFrame implements ActionListener {
         if (conn == null) {
             return;
         }
+
+        //check if an item with the same name already exists in the database
+        String checkSql = "SELECT COUNT(*) FROM inventory WHERE name = ?";
+        try (PreparedStatement checkStmt = conn.prepareStatement(checkSql))
+        {
+            checkStmt.setString(1,name);
+            ResultSet result = checkStmt.executeQuery();
+
+            if (result.next() && result.getInt(1) > 0)
+            {
+                JOptionPane.showMessageDialog(this,"An item with this name already exists, add failed.", "Duplicate Item", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+            JOptionPane.showMessageDialog(this, "Error executing query: " + e.getMessage());
+            return;
+        }
+
+        //if item doesn't exit, proceed with the insert
         String sql = "INSERT INTO inventory (id, name, qty) VALUES (?, ?, ?)";
         try (PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setInt(1, id);
@@ -598,6 +658,27 @@ public class GUI extends JFrame implements ActionListener {
         {
             stmt.setInt(1, itemId);
             stmt.setString(2, name);
+            stmt.executeUpdate();
+        }
+        catch (SQLException e)
+        {
+            e.printStackTrace();
+            JOptionPane.showMessageDialog(this, "Error executing query: " + e.getMessage());
+            return;
+        }
+    }
+
+    private void updateInventoryQuantity(int qty, String invName)
+    {
+        if (conn == null)
+        {
+            return;
+        }
+        String sql = "UPDATE inventory SET qty = ? WHERE name = ?";
+        try (PreparedStatement stmt = conn.prepareStatement(sql))
+        {
+            stmt.setInt(1,qty);
+            stmt.setString(2, invName);
             stmt.executeUpdate();
         }
         catch (SQLException e)
@@ -635,7 +716,10 @@ public class GUI extends JFrame implements ActionListener {
             return;
         }
 
-        String sql = "SELECT name, qty FROM inventory";
+        String sql = "SELECT id, name, qty FROM inventory";
+
+        //reset the inventory table
+        inventoryTableModel.setRowCount(0);
 
         try (PreparedStatement invStmt = conn.prepareStatement(sql))
         {
@@ -643,11 +727,12 @@ public class GUI extends JFrame implements ActionListener {
 
             while (result.next())
             {
+                int invId = result.getInt("id");
                 String invName = result.getString("name");
                 int stock = result.getInt("qty");
                 String status = (stock < 10) ? "Refill Recommended" : "";
 
-                inventoryTableModel.addRow(new Object[]{invName, stock, "-", status});
+                inventoryTableModel.addRow(new Object[]{invId, invName, stock, "-", status});
             }
             result.close();
         }
@@ -901,7 +986,7 @@ public class GUI extends JFrame implements ActionListener {
                 JTextField invRemoveId = new JTextField();
                 JTextField invRemoveName = new JTextField();
                 Object[] removeMsg = {"ID: ", invRemoveId, "Inventory Name:", invRemoveName};
-                int removeOption =  JOptionPane.showConfirmDialog(null, removeMsg, "Remove Item", JOptionPane.OK_CANCEL_OPTION);
+                int removeOption =  JOptionPane.showConfirmDialog(null, removeMsg, "Remove Inventory", JOptionPane.OK_CANCEL_OPTION);
                 if(removeOption == JOptionPane.OK_OPTION) {
                     int invRemoveIdInt = Integer.parseInt(invRemoveId.getText());
                     String invRemoveNameText = invRemoveName.getText();
