@@ -696,8 +696,8 @@ public class GUI extends JFrame implements ActionListener {
         JDialog dialog = new JDialog(this, "Manage Items");
         dialog.setSize(400, 300);
 
-        JPanel mainPanel = new JPanel(new BorderLayout(10, 10));
-        mainPanel.setBorder(new EmptyBorder(10, 10, 10, 10));
+        JPanel itemManagementPanel = new JPanel(new BorderLayout(10, 10));
+        itemManagementPanel.setBorder(new EmptyBorder(10, 10, 10, 10));
 
         JPanel fieldsPanel = new JPanel(new GridLayout(2, 5, 10, 10));
 
@@ -726,10 +726,10 @@ public class GUI extends JFrame implements ActionListener {
         buttonPanel.add(addEditButton);
         buttonPanel.add(cancelButton);
 
-        mainPanel.add(fieldsPanel, BorderLayout.CENTER);
-        mainPanel.add(buttonPanel, BorderLayout.SOUTH);
+        itemManagementPanel.add(fieldsPanel, BorderLayout.CENTER);
+        itemManagementPanel.add(buttonPanel, BorderLayout.SOUTH);
 
-        dialog.add(mainPanel);
+        dialog.add(itemManagementPanel);
 
         addEditButton.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
@@ -795,6 +795,8 @@ public class GUI extends JFrame implements ActionListener {
                             stmt.executeUpdate(insertItem);
                             JOptionPane.showMessageDialog(dialog, "New item added");
                             stmt.close();
+
+                            itemInventoryDialog(itemID);
                         }
                         catch (Exception ex) {
                             JOptionPane.showMessageDialog(dialog, "Error adding new item: " + ex.getMessage());
@@ -821,6 +823,67 @@ public class GUI extends JFrame implements ActionListener {
         dialog.setVisible(true);
     }
 
+    private void itemInventoryDialog(int newItemID) {
+        JDialog dialog = new JDialog(this, "Inventory Items");
+        dialog.setSize(400, 300);
+
+        DefaultTableModel itemInventoryModel = new DefaultTableModel(new String[]{"Inventory ID", "Name", "Select"}, 0) {
+            @Override
+            public Class<?> getColumnClass(int columnIndex) {
+                if (columnIndex == 2) { // Select column is Boolean
+                    return Boolean.class;
+                }
+                return super.getColumnClass(columnIndex);
+            }
+        };
+
+        // Load inventory data
+        itemInventoryModel.setRowCount(0);
+
+        String getInventory = "SELECT id, name FROM inventory";
+        try (Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(getInventory)) {
+            while(rs.next()) {
+                int id = rs.getInt("id");
+                String name = rs.getString("name");
+                boolean select = false;
+
+                itemInventoryModel.addRow(new Object[]{id, name, select});
+            }
+        }
+        catch (SQLException ex) {
+            JOptionPane.showMessageDialog(this, "Error reading inventory: " + ex.getMessage());
+        }
+
+        JTable itemInventoryConnectionTable = new JTable(itemInventoryModel);
+        JButton submitButton = new JButton("Submit");
+
+        submitButton.addActionListener( e -> {
+           for (int row = 0; row < itemInventoryConnectionTable.getRowCount(); row++) {
+               boolean isSelected = (boolean) itemInventoryModel.getValueAt(row, 2);
+               if (isSelected) {
+                   int inventoryID = Integer.parseInt((String) itemInventoryModel.getValueAt(row, 0));
+
+                   String insertItemInventoryJunction = "INSERT INTO itemInventoryJunction (itemID, inventoryID) VALUES (?, ?)";
+                   try (PreparedStatement pstmt = conn.prepareStatement(insertItemInventoryJunction)) {
+                       pstmt.setInt(1, newItemID);
+                       pstmt.setInt(2, inventoryID);
+                       pstmt.executeUpdate();
+                   }
+                   catch (SQLException ex) {
+                       JOptionPane.showMessageDialog(this, "Error inserting into item/inventory junction table: " + ex.getMessage());
+                   }
+               }
+           }
+           dialog.dispose();
+        });
+
+        dialog.setLocationRelativeTo(this);
+        dialog.setVisible(true);
+        dialog.add(new JScrollPane(itemInventoryConnectionTable));
+        dialog.add(submitButton, BorderLayout.SOUTH);
+    }
+    
     private boolean checkItemID(int itemID) {
         boolean exists = false;
         try {
