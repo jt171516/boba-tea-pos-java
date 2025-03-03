@@ -535,6 +535,12 @@ public class GUI extends JFrame implements ActionListener {
 
     }
 
+    /**
+    *@author jason agnew
+    *@param week
+    *@return none
+    *@throws sqlexception
+     */
     private JPanel salesReportPanel = null;
     private void weeklySalesReport(int week)
     {
@@ -653,12 +659,30 @@ public class GUI extends JFrame implements ActionListener {
         {
             return;
         }
+
+        //delete inventory item from inventory table
+
         String sql = "DELETE FROM inventory WHERE id = ? AND name = ?";
         try (PreparedStatement stmt = conn.prepareStatement(sql))
         {
             stmt.setInt(1, itemId);
             stmt.setString(2, name);
             stmt.executeUpdate();
+        }
+        catch (SQLException e)
+        {
+            e.printStackTrace();
+            JOptionPane.showMessageDialog(this, "Error executing query: " + e.getMessage());
+            return;
+        }
+
+        //delete inventory item from iteminventoryjunction
+
+        String junctionSql = "DELETE FROM iteminventoryjunction WHERE inventoryid = ?";
+        try (PreparedStatement junctionStmt = conn.prepareStatement(junctionSql))
+        {
+            junctionStmt.setInt(1, itemId);
+            junctionStmt.executeUpdate();
         }
         catch (SQLException e)
         {
