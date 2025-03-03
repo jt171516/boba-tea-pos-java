@@ -743,20 +743,50 @@ public class GUI extends JFrame implements ActionListener {
                     boolean idExists = checkItemID(itemID);
 
                     if (idExists) {
-                        if (!itemPrice.isEmpty()) {
-                            try {
-                                Statement stmt = conn.createStatement();
-                                String updatePrice = "UPDATE Item SET price=" + itemPrice + " WHERE id=" + itemID;
+                        try {
+                            Statement stmt = conn.createStatement();
+                            StringBuilder updateItem = new StringBuilder("UPDATE item SET");
 
-                                stmt.executeUpdate(updatePrice);
-                                JOptionPane.showMessageDialog(dialog, "Item price updated");
-                                stmt.close();
+                            boolean previousUpdate = false;
+                            if (!itemName.trim().isEmpty()) {
+                                updateItem.append(" name = '" + itemName + "'");
+                                previousUpdate = true;
                             }
-                            catch (Exception ex) {
-                                JOptionPane.showMessageDialog(dialog, "Error updating price: " + ex.getMessage());
+
+                            if (!itemPrice.trim().isEmpty()) {
+                                if (previousUpdate) {
+                                    updateItem.append(",");
+                                }
+                                updateItem.append(" price = " + itemPrice);
+                                previousUpdate = true;
                             }
+
+                            if (!itemCalories.trim().isEmpty()) {
+                                if (previousUpdate) {
+                                    updateItem.append(",");
+                                }
+                                updateItem.append(" calories = " + itemCalories);
+                                previousUpdate = true;
+                            }
+
+                            if (!itemSale.trim().isEmpty()) {
+                                if (previousUpdate) {
+                                    updateItem.append(",");
+                                }
+                                updateItem.append(" sales = " + itemSale);
+                            }
+
+                            updateItem.append(" WHERE id = " + itemID + ";");
+
+                            stmt.executeUpdate(updateItem.toString());
+                            JOptionPane.showMessageDialog(dialog, "Item updated");
+                            stmt.close();
+                        }
+                        catch (Exception ex) {
+                            JOptionPane.showMessageDialog(dialog, "Error updating item: " + ex.getMessage());
                         }
                     }
+
                     else {
                         try {
                             Statement stmt = conn.createStatement();
