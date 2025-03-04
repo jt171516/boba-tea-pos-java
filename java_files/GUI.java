@@ -7,14 +7,25 @@ import javax.swing.event.CellEditorListener;
 import javax.swing.event.ChangeEvent;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
 
 public class GUI extends JFrame implements ActionListener {
     static JFrame f;
 
+    
     private static Connection conn = null;
     //Tabbed Pane for manager menu
     private JTabbedPane tabbedPane;
+    
+    //Live Date & Time Display
+    private JLabel dateTimeLabel;
 
+    //Input fields for initial login screen
+    static JTextField userIdField;
+    static JPasswordField passwordField;
+    static JButton loginButton;
+    
     //CASHIER PANEL
     private JPanel cashierPanel;
     private JTextField searchField;
@@ -23,6 +34,7 @@ public class GUI extends JFrame implements ActionListener {
     private JScrollPane menuItemsScroll;
     private JTextArea orderArea;
     private JButton submitOrderButton;
+    
     //close button
     private JButton closeButton;
 
@@ -42,17 +54,29 @@ public class GUI extends JFrame implements ActionListener {
     private JButton addEmployeeButton;
     private JButton deleteEmployeeButton;
 
+    private static boolean isManager;
+    
     public static void main(String[] args)
     {
         connectToDatabase();
-        SwingUtilities.invokeLater(() ->
-        {
-            GUI app = new GUI();
-            app.setVisible(true);
-        });
+        SwingUtilities.invokeLater(() -> showLoginPage());
     }
 
-    public GUI()
+    private void updateDateTime(){
+        Calendar calendar = Calendar.getInstance();
+
+        //day, month day, year
+        SimpleDateFormat dateFormatter = new SimpleDateFormat("EEE, MMM dd, yyyy");
+        String date = dateFormatter.format(calendar.getTime());
+
+        //hour, minute, am/pm
+        SimpleDateFormat timeFormatter = new SimpleDateFormat("hh:mm:ss:a");
+        String time = timeFormatter.format(calendar.getTime());
+
+        dateTimeLabel.setText(date + " " + time);
+    }
+
+    public GUI(boolean isManager)
     {
         super("Team 11 DB GUI");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -66,17 +90,67 @@ public class GUI extends JFrame implements ActionListener {
         buildCashierPanel();
         tabbedPane.addTab("Cashier", cashierPanel);
 
-        //manager panel
-        buildManagerPanel();
-        tabbedPane.addTab("Manager", managerPanel);
+        if (isManager){
+            //manager panel
+            buildManagerPanel();
+            tabbedPane.addTab("Manager", managerPanel);
 
-        //employee management tab
-        buildEmployeeManagementPanel();
-        tabbedPane.addTab("Employees", employeesPanel);
+            //employee management tab
+            buildEmployeeManagementPanel();
+            tabbedPane.addTab("Employees", employeesPanel);
+        }
+
+        //add live date + clock to top border
+        dateTimeLabel = new JLabel();
+        updateDateTime();
+        add(dateTimeLabel, BorderLayout.NORTH);
+
+        Timer timer = new Timer(1000, this);
+        timer.setActionCommand("updateDateTime");
+        timer.start();
+
         //exit button
         closeButton = new JButton("Close");
         closeButton.addActionListener(this);
         add(closeButton, BorderLayout.SOUTH);
+    }
+    
+    //create dedicated initial login page
+    public static void showLoginPage() {
+        f = new JFrame("Login");
+
+        JPanel p = new JPanel();
+
+        JLabel userIdLabel = new JLabel("User ID:");
+        userIdField = new JTextField(20);
+
+        JLabel passwordLabel = new JLabel("Password:");
+        passwordField = new JPasswordField(20);
+
+        loginButton = new JButton("Login");
+        loginButton.addActionListener(new GUI(isManager));
+
+        p.add(userIdLabel);
+        p.add(userIdField);
+        p.add(passwordLabel);
+        p.add(passwordField);
+        p.add(loginButton);
+        p.add(new JLabel(new ImageIcon("../images/logo.png")));
+
+        f.add(p);
+
+        f.setSize(1000, 700);
+        f.setVisible(true);
+        f.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+    }
+
+    public static void showMainPage(boolean isManager) {
+        // Dispose the login frame
+        f.dispose();
+
+        // Create the main application frame
+        GUI app = new GUI(isManager);
+        app.setVisible(true);
     }
 
     private void buildCashierPanel()
@@ -930,6 +1004,24 @@ public class GUI extends JFrame implements ActionListener {
             case "Close":
                 closeConnection();
                 dispose();
+                System.exit(ABORT);
+                break;
+            case "Login":
+                try {
+                    Statement stmt = conn.createStatement();
+                    String sqlStatement = String.format("SELECT * FROM employee WHERE name='%s'", userIdField.getText());
+                    ResultSet result = stmt.executeQuery(sqlStatement);
+
+                    if (result.next()) {
+                        boolean isManager = result.getBoolean("manager");
+                        showMainPage(isManager);
+                    } else {
+                        JOptionPane.showMessageDialog(null, "Invalid user ID.");
+                    }
+                } catch (Exception ex) {
+                    ex.printStackTrace();
+                    JOptionPane.showMessageDialog(null, "Error accessing Database.");
+                }
                 break;
             case "Search":
                 String query = searchField.getText().trim();
@@ -992,6 +1084,9 @@ public class GUI extends JFrame implements ActionListener {
                     }
                 }
                 break;
+            case "updateDateTime":
+                updateDateTime();
+                break;
             case "Add Inventory":
                 JTextField invAddId = new JTextField();
                 JTextField invAddName = new JTextField();
@@ -1037,7 +1132,7 @@ public class GUI extends JFrame implements ActionListener {
         try
         {
             conn = DriverManager.getConnection(url, databaseUser, databasePassword);
-            JOptionPane.showMessageDialog(null, "Opened database successfully");
+            // JOptionPane.showMessageDialog(null, "Opened database successfully");
         }
         catch (Exception e)
         {
