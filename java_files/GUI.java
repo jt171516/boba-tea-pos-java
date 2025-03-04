@@ -614,11 +614,23 @@ public class GUI extends JFrame implements ActionListener {
         {
             return;
         }
-        String sql = "DELETE FROM item WHERE id = ?";
-        try (PreparedStatement stmt = conn.prepareStatement(sql))
+        String removeItemInventoryJunctions = "DELETE FROM itemInventoryJunction WHERE itemID = ?";
+        try (PreparedStatement removeJunctionStmt = conn.prepareStatement(removeItemInventoryJunctions))
         {
-            stmt.setInt(1, id);
-            stmt.executeUpdate();
+            removeJunctionStmt.setInt(1, id);
+            removeJunctionStmt.executeUpdate();
+        }
+        catch (SQLException e)
+        {
+            e.printStackTrace();
+            JOptionPane.showMessageDialog(this, "Error executing query: " + e.getMessage());
+        }
+
+        String removeItem = "DELETE FROM item WHERE id = ?";
+        try (PreparedStatement removeItemStmt = conn.prepareStatement(removeItem))
+        {
+            removeItemStmt.setInt(1, id);
+            removeItemStmt.executeUpdate();
         }
         catch (SQLException e)
         {
