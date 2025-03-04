@@ -793,11 +793,23 @@ public class GUI extends JFrame implements ActionListener {
         {
             return;
         }
-        String sql = "DELETE FROM item WHERE id = ?";
-        try (PreparedStatement stmt = conn.prepareStatement(sql))
+        String removeItemInventoryJunctions = "DELETE FROM itemInventoryJunction WHERE itemID = ?";
+        try (PreparedStatement removeJunctionStmt = conn.prepareStatement(removeItemInventoryJunctions))
         {
-            stmt.setInt(1, id);
-            stmt.executeUpdate();
+            removeJunctionStmt.setInt(1, id);
+            removeJunctionStmt.executeUpdate();
+        }
+        catch (SQLException e)
+        {
+            e.printStackTrace();
+            JOptionPane.showMessageDialog(this, "Error executing query: " + e.getMessage());
+        }
+
+        String removeItem = "DELETE FROM item WHERE id = ?";
+        try (PreparedStatement removeItemStmt = conn.prepareStatement(removeItem))
+        {
+            removeItemStmt.setInt(1, id);
+            removeItemStmt.executeUpdate();
         }
         catch (SQLException e)
         {
@@ -842,22 +854,27 @@ public class GUI extends JFrame implements ActionListener {
         }
     }
 
-    private void loadItemsManager(DefaultTableModel model) {
-        if (conn == null) {
+    private void loadItemsManager(DefaultTableModel model)
+    {
+        if (conn == null)
+        {
             return;
         }
 
         // Clear existing data
-        while (model.getRowCount() > 0) {
+        while (model.getRowCount() > 0)
+        {
             model.removeRow(0);
         }
 
-        try {
+        try
+        {
             Statement stmt = conn.createStatement();
             String sqlStatement = "SELECT * FROM Item";
             ResultSet rs = stmt.executeQuery(sqlStatement);
 
-            while (rs.next()) {
+            while (rs.next())
+            {
                 // Get data from the current row
                 Integer id = rs.getInt("id");
                 String name = rs.getString("name");
@@ -870,17 +887,19 @@ public class GUI extends JFrame implements ActionListener {
             rs.close();
             stmt.close();
         }
-        catch (Exception e) {
+        catch (Exception e)
+        {
             JOptionPane.showMessageDialog(this, "LOADING MENU ITEMS ERROR sad " + e.getMessage());
         }
     }
 
-    private void itemManagement(DefaultTableModel model) {
+    private void itemManagement(DefaultTableModel model)
+    {
         JDialog dialog = new JDialog(this, "Manage Items");
         dialog.setSize(400, 300);
 
-        JPanel mainPanel = new JPanel(new BorderLayout(10, 10));
-        mainPanel.setBorder(new EmptyBorder(10, 10, 10, 10));
+        JPanel itemManagementPanel = new JPanel(new BorderLayout(10, 10));
+        itemManagementPanel.setBorder(new EmptyBorder(10, 10, 10, 10));
 
         JPanel fieldsPanel = new JPanel(new GridLayout(2, 5, 10, 10));
 
@@ -909,14 +928,17 @@ public class GUI extends JFrame implements ActionListener {
         buttonPanel.add(addEditButton);
         buttonPanel.add(cancelButton);
 
-        mainPanel.add(fieldsPanel, BorderLayout.CENTER);
-        mainPanel.add(buttonPanel, BorderLayout.SOUTH);
+        itemManagementPanel.add(fieldsPanel, BorderLayout.CENTER);
+        itemManagementPanel.add(buttonPanel, BorderLayout.SOUTH);
 
-        dialog.add(mainPanel);
+        dialog.add(itemManagementPanel);
 
-        addEditButton.addActionListener(new ActionListener() {
-            public void actionPerformed(ActionEvent e) {
-                try {
+        addEditButton.addActionListener(new ActionListener()
+        {
+            public void actionPerformed(ActionEvent e)
+            {
+                try
+                {
                     int itemID = Integer.parseInt(idField.getText());
                     String itemName = nameField.getText();
                     String itemPrice = priceField.getText();
@@ -925,31 +947,76 @@ public class GUI extends JFrame implements ActionListener {
 
                     boolean idExists = checkItemID(itemID);
 
-                    if (idExists) {
-                        if (!itemPrice.isEmpty()) {
-                            try {
-                                Statement stmt = conn.createStatement();
-                                String updatePrice = "UPDATE Item SET price=" + itemPrice + " WHERE id=" + itemID;
+                    if (idExists)
+                    {
+                        try
+                        {
+                            Statement stmt = conn.createStatement();
+                            StringBuilder updateItem = new StringBuilder("UPDATE item SET");
 
-                                stmt.executeUpdate(updatePrice);
-                                JOptionPane.showMessageDialog(dialog, "Item price updated");
-                                stmt.close();
+                            boolean previousUpdate = false;
+                            if (!itemName.trim().isEmpty())
+                            {
+                                updateItem.append(" name = '" + itemName + "'");
+                                previousUpdate = true;
                             }
-                            catch (Exception ex) {
-                                JOptionPane.showMessageDialog(dialog, "Error updating price: " + ex.getMessage());
+
+                            if (!itemPrice.trim().isEmpty())
+                            {
+                                if (previousUpdate)
+                                {
+                                    updateItem.append(",");
+                                }
+                                updateItem.append(" price = " + itemPrice);
+                                previousUpdate = true;
                             }
+
+                            if (!itemCalories.trim().isEmpty())
+                            {
+                                if (previousUpdate)
+                                {
+                                    updateItem.append(",");
+                                }
+                                updateItem.append(" calories = " + itemCalories);
+                                previousUpdate = true;
+                            }
+
+                            if (!itemSale.trim().isEmpty())
+                            {
+                                if (previousUpdate)
+                                {
+                                    updateItem.append(",");
+                                }
+                                updateItem.append(" sales = " + itemSale);
+                            }
+
+                            updateItem.append(" WHERE id = " + itemID + ";");
+
+                            stmt.executeUpdate(updateItem.toString());
+                            JOptionPane.showMessageDialog(dialog, "Item updated");
+                            stmt.close();
+                        }
+                        catch (Exception ex)
+                        {
+                            JOptionPane.showMessageDialog(dialog, "Error updating item: " + ex.getMessage());
                         }
                     }
-                    else {
-                        try {
+
+                    else
+                    {
+                        try
+                        {
                             Statement stmt = conn.createStatement();
                             String insertItem = "INSERT INTO Item (id, name, price, calories, sales) VALUES (" + itemID + ", '" + itemName + "', " + itemPrice + ", " + itemCalories + ", " + itemSale + ")";
 
                             stmt.executeUpdate(insertItem);
                             JOptionPane.showMessageDialog(dialog, "New item added");
                             stmt.close();
+
+                            itemInventoryJunctionDialog(itemID);
                         }
-                        catch (Exception ex) {
+                        catch (Exception ex)
+                        {
                             JOptionPane.showMessageDialog(dialog, "Error adding new item: " + ex.getMessage());
                         }
                     }
@@ -957,15 +1024,18 @@ public class GUI extends JFrame implements ActionListener {
                     loadItemsManager(model);
                     dialog.dispose();
                 }
-                catch (NumberFormatException ex) {
+                catch (NumberFormatException ex)
+                {
                     JOptionPane.showMessageDialog(dialog,
                             "Please enter valid numbers for ID, Price, Calories, and Sales");
                 }
             }
         });
 
-        cancelButton.addActionListener(new ActionListener() {
-            public void actionPerformed(ActionEvent e) {
+        cancelButton.addActionListener(new ActionListener()
+        {
+            public void actionPerformed(ActionEvent e)
+            {
                 dialog.dispose();
             }
         });
@@ -974,21 +1044,127 @@ public class GUI extends JFrame implements ActionListener {
         dialog.setVisible(true);
     }
 
-    private boolean checkItemID(int itemID) {
+    private void itemInventoryJunctionDialog(int newItemID)
+    {
+        JDialog dialog = new JDialog(this, "Inventory Items");
+        dialog.setLayout(new BorderLayout(10, 10));
+        dialog.setSize(500, 400);
+
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 0));
+
+        DefaultTableModel itemInventoryModel = new DefaultTableModel(new String[]{"Inventory ID", "Name", "Select"}, 0)
+        {
+            @Override
+            public Class<?> getColumnClass(int columnIndex)
+            {
+                if (columnIndex == 2)
+                {
+                    return Boolean.class;
+                }
+                return super.getColumnClass(columnIndex);
+            }
+        };
+
+        // Load inventory data
+        loadItemInventoryModel(itemInventoryModel);
+
+        JTable itemInventoryConnectionTable = new JTable(itemInventoryModel);
+
+        JButton addInventoryButton = new JButton("Add Inventory");
+        addInventoryButton.addActionListener(e ->
+        {
+            JTextField invAddId = new JTextField();
+            JTextField invAddName = new JTextField();
+            JTextField invAddQty = new JTextField();
+            Object[] addMsg = {"ID: ", invAddId, "Inventory Name:", invAddName, "Quantity:", invAddQty};
+            int addOption = JOptionPane.showConfirmDialog(null, addMsg, "Add New Inventory", JOptionPane.OK_CANCEL_OPTION);
+            if(addOption == JOptionPane.OK_OPTION) {
+                int invAddIdInt = Integer.parseInt(invAddId.getText());
+                String invAddNameText = invAddName.getText();
+                int invAddQtyInt = Integer.parseInt(invAddQty.getText());
+                addInventoryItem(invAddIdInt, invAddNameText, invAddQtyInt);
+                populateInventoryTable(inventoryTableModel);
+                loadItemInventoryModel(itemInventoryModel);
+            }
+        });
+
+        JButton submitButton = new JButton("Submit");
+        submitButton.addActionListener( e ->
+        {
+           for (int row = 0; row < itemInventoryConnectionTable.getRowCount(); row++)
+           {
+               boolean isSelected = (boolean) itemInventoryModel.getValueAt(row, 2);
+               if (isSelected)
+               {
+                   int inventoryID = (Integer) itemInventoryModel.getValueAt(row, 0);
+
+                   String insertItemInventoryJunction = "INSERT INTO itemInventoryJunction (itemID, inventoryID) VALUES (?, ?)";
+                   try (PreparedStatement pstmt = conn.prepareStatement(insertItemInventoryJunction))
+                   {
+                       pstmt.setInt(1, newItemID);
+                       pstmt.setInt(2, inventoryID);
+                       pstmt.executeUpdate();
+                   }
+                   catch (SQLException ex)
+                   {
+                       JOptionPane.showMessageDialog(this, "Error inserting into item/inventory junction table: " + ex.getMessage());
+                   }
+               }
+           }
+           dialog.dispose();
+        });
+
+        buttonPanel.add(addInventoryButton);
+        buttonPanel.add(submitButton);
+        dialog.add(buttonPanel, BorderLayout.SOUTH);
+        dialog.setLocationRelativeTo(this);
+        dialog.setVisible(true);
+        dialog.add(new JScrollPane(itemInventoryConnectionTable));
+
+    }
+
+    private void loadItemInventoryModel(DefaultTableModel itemInventoryModel)
+    {
+        itemInventoryModel.setRowCount(0);
+
+        String getInventory = "SELECT id, name FROM inventory";
+        try (Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(getInventory))
+        {
+            while(rs.next())
+            {
+                int id = rs.getInt("id");
+                String name = rs.getString("name");
+                boolean select = false;
+
+                itemInventoryModel.addRow(new Object[]{id, name, select});
+            }
+        }
+        catch (SQLException ex)
+        {
+            JOptionPane.showMessageDialog(this, "Error reading inventory: " + ex.getMessage());
+        }
+    }
+
+    private boolean checkItemID(int itemID)
+    {
         boolean exists = false;
-        try {
+        try
+        {
             Statement stmt = conn.createStatement();
             String sql = "SELECT EXISTS(SELECT 1 FROM Item WHERE id = " + itemID + ")";
             ResultSet rs = stmt.executeQuery(sql);
 
-            if (rs.next()) {
+            if (rs.next())
+            {
                 exists = rs.getBoolean(1);
             }
 
             rs.close();
             stmt.close();
         }
-        catch (Exception e) {
+        catch (Exception e)
+        {
             JOptionPane.showMessageDialog(this, "Error checking item existence: " + e.getMessage());
         }
         return exists;
