@@ -8,6 +8,7 @@ import javax.swing.event.ChangeEvent;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Calendar;
 
 public class GUI extends JFrame implements ActionListener {
@@ -210,6 +211,11 @@ public class GUI extends JFrame implements ActionListener {
         topPanel.add(revenueLabel);
         topPanel.add(productComboBox);
         topPanel.add(timeRangeComboBox);
+
+        //add button for x report
+        JButton xReportButton = new JButton("X-Report");
+        xReportButton.addActionListener(this);
+        topPanel.add(xReportButton);
 
         // === CENTER PANEL ===
         JPanel chartPanel = new JPanel() {
@@ -1170,6 +1176,76 @@ public class GUI extends JFrame implements ActionListener {
         return exists;
     }
 
+    private void xReport() 
+    {
+        if (conn == null) 
+        {
+            return;
+        }
+    
+        String sql = 
+            "SELECT " +
+            "   EXTRACT(HOUR FROM o.timestamp) AS hour, " +
+            "   COUNT(DISTINCT o.id) AS total_orders, " +
+            "   COALESCE(SUM(o.totalprice), 0) AS total_revenue, " +
+            "   COUNT(oj.itemid) AS total_items " +
+            "FROM orders o " +
+            "LEFT JOIN ordersitemjunction oj ON o.id = oj.orderid " +
+            "WHERE DATE(o.timestamp) = CURRENT_DATE " +
+            "GROUP BY hour " +
+            "ORDER BY hour;";
+    
+        String[] stringStuff = new String[]{"Hour", "Total Orders", "Total Revenue", "Total Items"};
+        DefaultTableModel model = new DefaultTableModel(stringStuff, 0);
+    
+        try (PreparedStatement st = conn.prepareStatement(sql)) 
+        {
+            ResultSet rst = st.executeQuery();
+            while (rst.next())
+            {
+                int hour = rst.getInt("hour");
+                int totalOrders = rst.getInt("total_orders");
+                int totalRevenue = rst.getInt("total_revenue");
+                int totalItems = rst.getInt("total_items");
+                Object[] lmao = new Object[]{hour, totalOrders, totalRevenue, totalItems};
+                model.addRow(lmao);
+            }
+            rst.close();
+        } 
+        catch (SQLException e) 
+        {
+            JOptionPane.showMessageDialog(this, "x-report failed sad" + e.getMessage());
+            return;
+        }
+    
+        JDialog dialog = new JDialog(this, "x-report sales per hour for today:");
+        dialog.setSize(600, 400);
+        JTable table = new JTable(model);
+        dialog.add(new JScrollPane(table));
+        dialog.setLocationRelativeTo(this);
+        dialog.setVisible(true);
+    }
+    
+    private int getItemIdByName(String itemName) throws SQLException 
+    {
+        String sql = "SELECT id FROM item WHERE name = ? LIMIT 1";
+        try (PreparedStatement epicStatement = conn.prepareStatement(sql)) 
+        {
+            epicStatement.setString(1, itemName);
+            try (ResultSet rst = epicStatement.executeQuery()) 
+            {
+                if (rst.next()) 
+                {
+                    return rst.getInt("id");
+                } 
+                else 
+                {
+                    return -1; //error
+                }
+            }
+        }
+    }
+    
     //action listener
     @Override
     public void actionPerformed(ActionEvent e)
@@ -1214,12 +1290,14 @@ public class GUI extends JFrame implements ActionListener {
                 if (orderText.isEmpty())
                 {
                     JOptionPane.showMessageDialog(this, "no order to submit!!!!");
+                    break;
                 }
                 else
                 {
                     String[] lines = orderText.split("\\n");
                     double totalPrice = 0.0;
                     StringBuilder orderItems = new StringBuilder();
+                    java.util.List<String> itemNames = new ArrayList<>(); //item names
 
                     for (String line : lines)
                     {
@@ -1241,25 +1319,78 @@ public class GUI extends JFrame implements ActionListener {
                                 orderItems.append(", ");
                             }
                             orderItems.append(itemName);
+
+                            //store item in name in list for junc ins
+                            itemNames.add(itemName);
                         }
                     }
+
+                    if (itemNames.isEmpty()) 
+                    {
+                        JOptionPane.showMessageDialog(this, "no valid items in order sad");
+                        break;
+                    }
+                    int newOrderId = -1;
                     try
                     {
-                        String sql = "INSERT INTO Orders (name, totalprice, timestamp) VALUES (?, ?, CURRENT_TIMESTAMP)";
+                        String sql = "INSERT INTO Orders (name, totalprice, timestamp) VALUES (?, ?, CURRENT_TIMESTAMP) RETURNING id";
                         PreparedStatement pStatement = conn.prepareStatement(sql);
                         pStatement.setString(1, orderItems.toString());
                         pStatement.setDouble(2, totalPrice);
-                        pStatement.executeUpdate();
-                        pStatement.close();
-                        JOptionPane.showMessageDialog(this, "order submitted!\n" + "items: " + orderItems.toString() + "\ntotal price: $" + totalPrice);
-                        orderArea.setText("");
-                    }
+                        try (ResultSet rs = pStatement.executeQuery()) 
+                        {
+                            if (rs.next()) 
+                            {
+                                newOrderId = rs.getInt("id");
+                            }
+                        }
+                        } 
+                        catch (SQLException ex) 
+                        {
+                            JOptionPane.showMessageDialog(this, "error insert order sad: " + ex.getMessage());
+                            break;
+                        }
                     catch(Exception e1)
                     {
                         JOptionPane.showMessageDialog(this, "submitting order failed sad " + e1.getMessage());
                     }
+                    if (newOrderId == -1) 
+                    {
+                        JOptionPane.showMessageDialog(this, "fail to get new order id sad");
+                        break;
+                    }
+                    for (String itemName : itemNames) 
+                    {
+                        try 
+                        {
+                            int itemId = getItemIdByName(itemName);
+                            if (itemId == -1) 
+                            {
+                                JOptionPane.showMessageDialog(this, "no item found with name: " + itemName);
+                                continue;
+                            }
+                
+                            String junctionSql = 
+                                "INSERT INTO ordersitemjunction (orderid, itemid) " +
+                                "VALUES (?, ?)";
+                            try (PreparedStatement junctionStmt = conn.prepareStatement(junctionSql)) 
+                            {
+                                junctionStmt.setInt(1, newOrderId);
+                                junctionStmt.setInt(2, itemId);
+                                junctionStmt.executeUpdate();
+                            }
+                        } 
+                        catch (SQLException ex) 
+                        {
+                            JOptionPane.showMessageDialog(this, "error insert item: " + itemName 
+                                  + ": into ordersitemjunction: " + ex.getMessage());
+                        }
+                    }
+                    JOptionPane.showMessageDialog(this, 
+                        "order submitted!!!!!\nitems: " + orderItems.toString() + "\total price: $" + totalPrice);
+                    orderArea.setText("");
                 }
-                break;
+                    break;
             case "updateDateTime":
                 updateDateTime();
                 break;
@@ -1292,6 +1423,9 @@ public class GUI extends JFrame implements ActionListener {
             case "Show Weekly Sales":
                 int selectedWeek = Integer.parseInt((String) weekComboBox.getSelectedItem());
                 weeklySalesReport(selectedWeek);
+                break;
+            case "X-Report":
+                xReport();
                 break;
             default:
                 break;
