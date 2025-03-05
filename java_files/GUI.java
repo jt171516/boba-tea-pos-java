@@ -661,19 +661,33 @@ public class GUI extends JFrame implements ActionListener {
         }
 
         //delete inventory item from inventory table
-        String sql = "DELETE FROM inventory WHERE id = ? AND name = ?";
 
+        String sql = "DELETE FROM inventory WHERE id = ? AND name = ?";
         try (PreparedStatement stmt = conn.prepareStatement(sql))
         {
             stmt.setInt(1, itemId);
             stmt.setString(2, name);
             stmt.executeUpdate();
         }
-
-        //if item is already in iteminventoryjunction, then pop up cannot remove warning
         catch (SQLException e)
         {
-            JOptionPane.showMessageDialog(this, "Cannot remove inventory as items depend upon it", "Error", JOptionPane.WARNING_MESSAGE);
+            e.printStackTrace();
+            JOptionPane.showMessageDialog(this, "Error executing query: " + e.getMessage());
+            return;
+        }
+
+        //delete inventory item from iteminventoryjunction
+
+        String junctionSql = "DELETE FROM iteminventoryjunction WHERE inventoryid = ?";
+        try (PreparedStatement junctionStmt = conn.prepareStatement(junctionSql))
+        {
+            junctionStmt.setInt(1, itemId);
+            junctionStmt.executeUpdate();
+        }
+        catch (SQLException e)
+        {
+            e.printStackTrace();
+            JOptionPane.showMessageDialog(this, "Error executing query: " + e.getMessage());
             return;
         }
     }
@@ -851,16 +865,19 @@ public class GUI extends JFrame implements ActionListener {
         }
 
         // Clear existing data
-        while (model.getRowCount() > 0) {
+        while (model.getRowCount() > 0)
+        {
             model.removeRow(0);
         }
 
-        try {
+        try
+        {
             Statement stmt = conn.createStatement();
             String sqlStatement = "SELECT * FROM Item";
             ResultSet rs = stmt.executeQuery(sqlStatement);
 
-            while (rs.next()) {
+            while (rs.next())
+            {
                 // Get data from the current row
                 Integer id = rs.getInt("id");
                 String name = rs.getString("name");
@@ -873,17 +890,19 @@ public class GUI extends JFrame implements ActionListener {
             rs.close();
             stmt.close();
         }
-        catch (Exception e) {
+        catch (Exception e)
+        {
             JOptionPane.showMessageDialog(this, "LOADING MENU ITEMS ERROR sad " + e.getMessage());
         }
     }
 
-    private void itemManagement(DefaultTableModel model) {
+    private void itemManagement(DefaultTableModel model)
+    {
         JDialog dialog = new JDialog(this, "Manage Items");
         dialog.setSize(400, 300);
 
-        JPanel mainPanel = new JPanel(new BorderLayout(10, 10));
-        mainPanel.setBorder(new EmptyBorder(10, 10, 10, 10));
+        JPanel itemManagementPanel = new JPanel(new BorderLayout(10, 10));
+        itemManagementPanel.setBorder(new EmptyBorder(10, 10, 10, 10));
 
         JPanel fieldsPanel = new JPanel(new GridLayout(2, 5, 10, 10));
 
@@ -912,14 +931,17 @@ public class GUI extends JFrame implements ActionListener {
         buttonPanel.add(addEditButton);
         buttonPanel.add(cancelButton);
 
-        mainPanel.add(fieldsPanel, BorderLayout.CENTER);
-        mainPanel.add(buttonPanel, BorderLayout.SOUTH);
+        itemManagementPanel.add(fieldsPanel, BorderLayout.CENTER);
+        itemManagementPanel.add(buttonPanel, BorderLayout.SOUTH);
 
-        dialog.add(mainPanel);
+        dialog.add(itemManagementPanel);
 
-        addEditButton.addActionListener(new ActionListener() {
-            public void actionPerformed(ActionEvent e) {
-                try {
+        addEditButton.addActionListener(new ActionListener()
+        {
+            public void actionPerformed(ActionEvent e)
+            {
+                try
+                {
                     int itemID = Integer.parseInt(idField.getText());
                     String itemName = nameField.getText();
                     String itemPrice = priceField.getText();
@@ -1066,8 +1088,18 @@ public class GUI extends JFrame implements ActionListener {
                             reduceStock(itemId);
 
                             populateInventoryTable(inventoryTableModel);
+
+                            //store item in name in list for junc ins
+                            itemNames.add(itemName);
                         }
                     }
+
+                    if (itemNames.isEmpty())
+                    {
+                        JOptionPane.showMessageDialog(this, "no valid items in order sad");
+                        break;
+                    }
+                    int newOrderId = -1;
                     try
                     {
                         String sql = "INSERT INTO Orders (name, totalprice, timestamp) VALUES (?, ?, CURRENT_TIMESTAMP)";
