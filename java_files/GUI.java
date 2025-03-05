@@ -234,7 +234,7 @@ public class GUI extends JFrame implements ActionListener {
 
         // ----- Left: Inventory -----
         //inventoryTable data
-        String[] inventoryColumns = {"ID","Product", "Stock", "Sales", "Status"};
+        String[] inventoryColumns = {"ID","Product", "Stock", "Status"};
         inventoryTableModel = new DefaultTableModel(inventoryColumns, 0)
         {
             @Override
@@ -834,7 +834,7 @@ public class GUI extends JFrame implements ActionListener {
                 int stock = result.getInt("qty");
                 String status = (stock < 10) ? "Refill Recommended" : "";
 
-                inventoryTableModel.addRow(new Object[]{invId, invName, stock, "-", status});
+                inventoryTableModel.addRow(new Object[]{invId, invName, stock, status});
             }
             result.close();
         }
