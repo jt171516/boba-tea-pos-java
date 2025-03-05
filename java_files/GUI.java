@@ -42,7 +42,7 @@ public class GUI extends JFrame implements ActionListener {
     //MANAGER PANEL
     private JPanel managerPanel;
     private DefaultTableModel inventoryTableModel;
-    private JComboBox<String> weekComboBox;
+    private JComboBox<String> salesReportComboBox;
     private JComboBox<String> productComboBox;
 
     //MANAGE EMPLOYEES PANEL
@@ -349,15 +349,14 @@ public class GUI extends JFrame implements ActionListener {
         managerPanel.add(bottomPanel, BorderLayout.SOUTH);
 
         //sales report panel for manager panel
-        weekComboBox = new JComboBox<>(new String[]{"1", "2", "3", "4", "5"});
-        JButton salesReportButton = new JButton("Show Weekly Sales");
-
+        salesReportComboBox = new JComboBox<>(new String[]{"12 hours", "1 day", "2 days", "1 week", "1 month", "3 months"});
+        
         //add action listener to fetch sales data for the selected week
-        salesReportButton.addActionListener(this);
+        salesReportComboBox.addActionListener(this);
+        salesReportComboBox.setActionCommand("Generate Sales Report");
 
-        topPanel.add(new JLabel("Select Week:"));
-        topPanel.add(weekComboBox);
-        topPanel.add(salesReportButton);
+        topPanel.add(new JLabel("Generate Sales Report for:"));
+        topPanel.add(salesReportComboBox);
     }
 
     private void populateProductComboBox (JComboBox<String> productComboBox)
@@ -648,12 +647,12 @@ public class GUI extends JFrame implements ActionListener {
 
     /**
     *@author jason agnew
-    *@param week
+    *@param none
     *@return none
     *@throws sqlexception
      */
     private JPanel salesReportPanel = null;
-    private void weeklySalesReport(int week)
+    private void generateSalesReport(String period)
     {
         if (conn == null)
         {
@@ -661,22 +660,67 @@ public class GUI extends JFrame implements ActionListener {
         }
 
         //sql query to fetch the weekly order count
-        String sql = "SELECT orderCount FROM (" +
-                "SELECT COUNT(id) AS orderCount, EXTRACT(WEEK FROM timestamp) AS week " +
-                "FROM orders GROUP BY week) AS ordersInWeek " +
-                "WHERE week = ?";
+        String sql = "";
+        switch (period) {
+            case "12 hours":
+                sql = "SELECT name, COUNT(orders) AS total_quantity, " +
+                      "SUM(totalprice) AS item_sales " +
+                      "FROM orders " +
+                      "WHERE orders.timestamp >= NOW() - INTERVAL '12 hours' " +
+                      "GROUP BY name";
+                break;
+            case "1 day":
+                sql = "SELECT name, COUNT(orders) AS total_quantity, " +
+                      "SUM(totalprice) AS item_sales " +
+                      "FROM orders " +
+                      "WHERE orders.timestamp >= NOW() - INTERVAL '1 day' " +
+                      "GROUP BY name";
+                break;
+            case "2 days":
+                sql = "SELECT name, COUNT(orders) AS total_quantity, " +
+                      "SUM(totalprice) AS item_sales " +
+                      "FROM orders " +
+                      "WHERE orders.timestamp >= NOW() - INTERVAL '2 days' " +
+                      "GROUP BY name";
+                break;
+            case "1 week":
+                sql = "SELECT name, COUNT(orders) AS total_quantity, " +
+                      "SUM(totalprice) AS item_sales " +
+                      "FROM orders " +
+                      "WHERE orders.timestamp >= NOW() - INTERVAL '1 week' " +
+                      "GROUP BY name";
+                break;
+            case "1 month":
+                sql = "SELECT name, COUNT(orders) AS total_quantity, " +
+                      "SUM(totalprice) AS item_sales " +
+                      "FROM orders " +
+                      "WHERE orders.timestamp >= NOW() - INTERVAL '1 month' " +
+                      "GROUP BY name";
+                break;
+            case "3 months":
+                sql = "SELECT name, COUNT(orders) AS total_quantity, " +
+                      "SUM(totalprice) AS item_sales " +
+                      "FROM orders " +
+                      "WHERE orders.timestamp >= NOW() - INTERVAL '3 months' " +
+                      "GROUP BY name";
+                break;
+            default:
+                return;
+        }
 
         //add table header
-        DefaultTableModel model = new DefaultTableModel(new String[]{"Orders in Week " + week}, 0);
+        DefaultTableModel model = new DefaultTableModel(new String[]{"Item name", "Total Quantity", "Item Sales"}, 0);
 
-        try (PreparedStatement weeklyStmt = conn.prepareStatement(sql))
+        try (PreparedStatement Stmt = conn.prepareStatement(sql))
         {
-            weeklyStmt.setInt(1, week);
-            ResultSet result = weeklyStmt.executeQuery();
+            ResultSet result = Stmt.executeQuery();
 
             while (result.next())
             {
-                model.addRow(new Object[]{result.getInt("orderCount")});
+                String itemName = result.getString("name");
+                int totalQuantity = result.getInt("total_quantity");
+                double salesValue = result.getDouble("item_sales");
+                model.addRow(new Object[]{itemName, totalQuantity, "$" + salesValue});
             }
             result.close();
         }
@@ -714,7 +758,7 @@ public class GUI extends JFrame implements ActionListener {
         buttonPanel.add(closeButton, BorderLayout.EAST);
 
         //sales panel layout and styling
-        salesReportPanel.setBorder(BorderFactory.createTitledBorder("Weekly Sales Report"));
+        salesReportPanel.setBorder(BorderFactory.createTitledBorder("Sales Report"));
         salesReportPanel.add(salesScrollPane, BorderLayout.CENTER);
         salesReportPanel.add(buttonPanel, BorderLayout.NORTH);
 
@@ -1554,9 +1598,9 @@ public class GUI extends JFrame implements ActionListener {
                     populateInventoryTable(inventoryTableModel);
                 }
                 break;
-            case "Show Weekly Sales":
-                int selectedWeek = Integer.parseInt((String) weekComboBox.getSelectedItem());
-                weeklySalesReport(selectedWeek);
+            case "Generate Sales Report":
+                String selectedPeriod = (String) salesReportComboBox.getSelectedItem();
+                generateSalesReport(selectedPeriod);
                 break;
             case "X-Report":
                 xReport();
