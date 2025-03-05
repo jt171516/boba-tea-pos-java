@@ -113,7 +113,7 @@ public class GUI extends JFrame implements ActionListener {
         timer.start();
 
         //exit button
-        closeButton = new JButton("Close");
+        closeButton = new JButton("Logout");
         closeButton.addActionListener(this);
         add(closeButton, BorderLayout.SOUTH);
     }
@@ -1632,6 +1632,10 @@ public class GUI extends JFrame implements ActionListener {
                     orderArea.setText("");
                 }
                     break;
+            case "Logout":
+                dispose();
+                showLoginPage();
+                break;
             case "updateDateTime":
                 updateDateTime();
                 break;
