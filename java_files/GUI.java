@@ -52,6 +52,7 @@ public class GUI extends JFrame implements ActionListener {
 
     // For adding a new employee
     private JTextField empNameField;
+    private JTextField empPasswordField;
     private JCheckBox managerCheckBox;
     private JButton addEmployeeButton;
     private JButton deleteEmployeeButton;
@@ -123,7 +124,7 @@ public class GUI extends JFrame implements ActionListener {
 
         JPanel p = new JPanel();
 
-        JLabel userIdLabel = new JLabel("User ID:");
+        JLabel userIdLabel = new JLabel("Username:");
         userIdField = new JTextField(20);
 
         JLabel passwordLabel = new JLabel("Password:");
@@ -400,19 +401,28 @@ public class GUI extends JFrame implements ActionListener {
         empNameField = new JTextField(15); // Increased column size for better visibility
         addPanel.add(empNameField, gbc);
 
-        // Manager checkbox
+        //Password label
         gbc.gridx = 2;
+        addPanel.add(new JLabel("Password:"), gbc);
+
+        //Password field
+        gbc.gridx = 3;
+        empPasswordField = new JTextField(15);
+        addPanel.add(empPasswordField, gbc);
+
+        // Manager checkbox
+        gbc.gridx = 4;
         managerCheckBox = new JCheckBox("Manager");
         addPanel.add(managerCheckBox, gbc);
 
         // Add Employee button
-        gbc.gridx = 3;
+        gbc.gridx = 5;
         addEmployeeButton = new JButton("Add Employee");
-        addEmployeeButton.addActionListener(e -> addEmployee());
+        addEmployeeButton.addActionListener(e -> addEmployee(empPasswordField.getText()));
         addPanel.add(addEmployeeButton, gbc);
 
         // Table setup 
-        String[] columns = { "ID", "Name", "Manager" };
+        String[] columns = { "ID", "Name", "Password", "Manager"};
         employeesTableModel = new DefaultTableModel(columns, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
@@ -440,6 +450,9 @@ public class GUI extends JFrame implements ActionListener {
                 } else if (column == 2) { // Manager column
                     boolean isManager = (boolean) employeesTableModel.getValueAt(row, column);
                     updateEmployeeManagerStatus(id, isManager);
+                } else if (column == 3) {
+                    String newPassword = (String) employeesTableModel.getValueAt(row, column);
+                    updateEmployeePassword(id, newPassword);
                 }
             }
         });
@@ -477,26 +490,40 @@ public class GUI extends JFrame implements ActionListener {
             loadAllEmployees(); // Refresh data on error
         }
     }
+
+    private void updateEmployeePassword(int id, String newPassword) {
+        String sql = "UPDATE employee SET password = ? WHERE id = ?";
+        try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, newPassword);
+            pstmt.setInt(2, id);
+            pstmt.executeUpdate();
+        } catch (SQLException ex) {
+            JOptionPane.showMessageDialog(this, "Error updating password: " + ex.getMessage());
+            loadAllEmployees(); // Refresh data on error
+        }
+    }
+
     private void loadAllEmployees() {
         // Clear old data
         employeesTableModel.setRowCount(0);
 
-        String sql = "SELECT id, name, manager FROM employee";
+        String sql = "SELECT id, name, manager, password FROM employee";
         try (Statement stmt = conn.createStatement();
              ResultSet rs = stmt.executeQuery(sql)) {
             while (rs.next()) {
                 int id = rs.getInt("id");
                 String name = rs.getString("name");
                 boolean isManager = rs.getBoolean("manager");
+                String password = rs.getString("password");
 
                 // Convert boolean to string or keep it boolean
-                employeesTableModel.addRow(new Object[]{id, name, isManager});
+                employeesTableModel.addRow(new Object[]{id, name, isManager, password});
             }
         } catch (SQLException e) {
             JOptionPane.showMessageDialog(this, "Error loading employees: " + e.getMessage());
         }
     }
-    private void addEmployee() {
+    private void addEmployee(String password) {
         String name = empNameField.getText().trim();
         boolean isManager = managerCheckBox.isSelected();
 
@@ -519,11 +546,12 @@ public class GUI extends JFrame implements ActionListener {
         }
 
         // 2) Insert row with nextId
-        String sql = "INSERT INTO employee (id, name, manager) VALUES (?, ?, ?)";
+        String sql = "INSERT INTO employee (id, name, password, manager) VALUES (?, ?, ?, ?)";
         try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setInt(1, nextId);
             pstmt.setString(2, name);
-            pstmt.setBoolean(3, isManager);
+            pstmt.setString(3, password);
+            pstmt.setBoolean(4, isManager);
             pstmt.executeUpdate();
 
             // 3) refresh
@@ -531,6 +559,7 @@ public class GUI extends JFrame implements ActionListener {
 
             // 4) clear UI
             empNameField.setText("");
+            empPasswordField.setText("");
             managerCheckBox.setSelected(false);
 
             JOptionPane.showMessageDialog(this, "Employee added successfully (ID=" + nextId + ")!");
@@ -1421,7 +1450,7 @@ public class GUI extends JFrame implements ActionListener {
                         boolean isManager = result.getBoolean("manager");
                         showMainPage(isManager);
                     } else {
-                        JOptionPane.showMessageDialog(null, "Invalid user ID.");
+                        JOptionPane.showMessageDialog(null, "Invalid username.");
                     }
                 } catch (Exception ex) {
                     ex.printStackTrace();
