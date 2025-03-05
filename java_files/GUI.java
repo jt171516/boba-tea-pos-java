@@ -43,6 +43,7 @@ public class GUI extends JFrame implements ActionListener {
     private JPanel managerPanel;
     private DefaultTableModel inventoryTableModel;
     private JComboBox<String> weekComboBox;
+    private JComboBox<String> productComboBox;
 
     //MANAGE EMPLOYEES PANEL
     private JPanel employeesPanel;
@@ -196,6 +197,7 @@ public class GUI extends JFrame implements ActionListener {
         loadAllMenuItemsForCashier();
 
     }
+
     private void buildManagerPanel()
     {
         managerPanel = new JPanel(new BorderLayout(10, 10));
@@ -204,7 +206,9 @@ public class GUI extends JFrame implements ActionListener {
         JPanel topPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         JLabel revenueLabel = new JLabel("Revenue:");
 
-        JComboBox<String> productComboBox = new JComboBox<>(new String[] {"All Products", "Item 1", "Item 2"});
+        productComboBox = new JComboBox<>();
+        //populate the productCombobBox with all of the items
+        populateProductComboBox(productComboBox);
 
         JComboBox<String> timeRangeComboBox = new JComboBox<>(new String[] {"1 Week", "1 Month", "3 Months"});
 
@@ -218,9 +222,11 @@ public class GUI extends JFrame implements ActionListener {
         topPanel.add(xReportButton);
 
         // === CENTER PANEL ===
-        JPanel chartPanel = new JPanel() {
+        JPanel chartPanel = new JPanel()
+        {
             @Override
-            protected void paintComponent(Graphics g) {
+            protected void paintComponent(Graphics g)
+            {
                 super.paintComponent(g);
                 // Simple placeholder line graph:
                 g.drawLine(20, getHeight() - 20, getWidth() - 20, 20);
@@ -352,6 +358,28 @@ public class GUI extends JFrame implements ActionListener {
         topPanel.add(new JLabel("Select Week:"));
         topPanel.add(weekComboBox);
         topPanel.add(salesReportButton);
+    }
+
+    private void populateProductComboBox (JComboBox<String> productComboBox)
+    {
+        productComboBox.removeAllItems();
+        productComboBox.addItem("All Products");
+
+        String sql = "SELECT name FROM item";
+
+        try (PreparedStatement stmt = conn.prepareStatement(sql))
+        {
+            ResultSet rs = stmt.executeQuery();
+            while (rs.next())
+            {
+                productComboBox.addItem(rs.getString("name"));
+            }
+        }
+        catch (SQLException e)
+        {
+            e.printStackTrace();
+            JOptionPane.showMessageDialog(null, "Failed to load products: " + e.getMessage());
+        }
     }
 
     private void buildEmployeeManagementPanel() {
@@ -544,6 +572,7 @@ public class GUI extends JFrame implements ActionListener {
             }
         }
     }
+
     private void loadAllMenuItemsForCashier()
     {
         if (conn == null)
@@ -594,10 +623,12 @@ public class GUI extends JFrame implements ActionListener {
         String sql = "SELECT name, price FROM item WHERE name LIKE " + searchQuery;
 
         menuItemsPanel.removeAll();
-        try(PreparedStatement stmt = conn.prepareStatement(sql)){
+        try(PreparedStatement stmt = conn.prepareStatement(sql))
+        {
             ResultSet rs = stmt.executeQuery();
 
-            while(rs.next()){
+            while(rs.next())
+            {
                 String name = rs.getString("name");
                 double price = rs.getDouble("price");
 
@@ -1105,6 +1136,7 @@ public class GUI extends JFrame implements ActionListener {
                     }
 
                     loadItemsManager(model);
+                    populateProductComboBox(productComboBox);
                     dialog.dispose();
                 }
                 catch (NumberFormatException ex)
