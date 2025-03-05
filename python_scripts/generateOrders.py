@@ -67,10 +67,12 @@ def generate_sharetea_data():
             item_id, calories, base_price, sales, item_name = random.choice(items)
             
             # 85% chance small order (1–2), 15% chance large group (3–10)
-            if random.random() < 0.85:
-                quantity = random.randint(1, 2)
-            else:
-                quantity = random.randint(3, 10)
+            # if random.random() < 0.85:
+            #     quantity = random.randint(1, 2)
+            # else:
+            #     quantity = random.randint(3, 10)
+
+            quantity = 1
             
             order_total = base_price * quantity  # integer
             
@@ -82,6 +84,7 @@ def generate_sharetea_data():
             })
 
             all_junction_entries.append({
+                "orderitemid": current_order_id,
                 "orderid": current_order_id,
                 "itemid": item_id,
             })
@@ -107,9 +110,10 @@ def write_csv_file(filename, orders):
 def write_junction_csv_file(filename, item_order_junction):
     with open(filename, mode='w', newline='', encoding='utf-8') as f:
         writer = csv.writer(f)
-        writer.writerow(["orderid", "itemid"])
+        writer.writerow(["orderitemid", "orderid", "itemid"])
         for o in item_order_junction:
             writer.writerow([
+                o["orderitemid"],
                 o["orderid"],
                 o["itemid"]
             ])
