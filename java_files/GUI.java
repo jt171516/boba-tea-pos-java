@@ -663,37 +663,43 @@ public class GUI extends JFrame implements ActionListener {
         String sql = "";
         switch (period) {
             case "12 hours":
-                sql = "SELECT name, COUNT(orders) AS total_quantity " +
+                sql = "SELECT name, COUNT(orders) AS total_quantity, " +
+                      "SUM(totalprice) AS item_sales " +
                       "FROM orders " +
                       "WHERE orders.timestamp >= NOW() - INTERVAL '12 hours' " +
                       "GROUP BY name";
                 break;
             case "1 day":
-                sql = "SELECT name, COUNT(orders) AS total_quantity " +
+                sql = "SELECT name, COUNT(orders) AS total_quantity, " +
+                      "SUM(totalprice) AS item_sales " +
                       "FROM orders " +
                       "WHERE orders.timestamp >= NOW() - INTERVAL '1 day' " +
                       "GROUP BY name";
                 break;
             case "2 days":
-                sql = "SELECT name, COUNT(orders) AS total_quantity " +
+                sql = "SELECT name, COUNT(orders) AS total_quantity, " +
+                      "SUM(totalprice) AS item_sales " +
                       "FROM orders " +
                       "WHERE orders.timestamp >= NOW() - INTERVAL '2 days' " +
                       "GROUP BY name";
                 break;
             case "1 week":
-                sql = "SELECT name, COUNT(orders) AS total_quantity " +
+                sql = "SELECT name, COUNT(orders) AS total_quantity, " +
+                      "SUM(totalprice) AS item_sales " +
                       "FROM orders " +
                       "WHERE orders.timestamp >= NOW() - INTERVAL '1 week' " +
                       "GROUP BY name";
                 break;
             case "1 month":
-                sql = "SELECT name, COUNT(orders) AS total_quantity " +
+                sql = "SELECT name, COUNT(orders) AS total_quantity, " +
+                      "SUM(totalprice) AS item_sales " +
                       "FROM orders " +
                       "WHERE orders.timestamp >= NOW() - INTERVAL '1 month' " +
                       "GROUP BY name";
                 break;
             case "3 months":
-                sql = "SELECT name, COUNT(orders) AS total_quantity " +
+                sql = "SELECT name, COUNT(orders) AS total_quantity, " +
+                      "SUM(totalprice) AS item_sales " +
                       "FROM orders " +
                       "WHERE orders.timestamp >= NOW() - INTERVAL '3 months' " +
                       "GROUP BY name";
@@ -703,7 +709,7 @@ public class GUI extends JFrame implements ActionListener {
         }
 
         //add table header
-        DefaultTableModel model = new DefaultTableModel(new String[]{"Item name", "Total Quantity"}, 0);
+        DefaultTableModel model = new DefaultTableModel(new String[]{"Item name", "Total Quantity", "Item Sales"}, 0);
 
         try (PreparedStatement Stmt = conn.prepareStatement(sql))
         {
@@ -713,7 +719,8 @@ public class GUI extends JFrame implements ActionListener {
             {
                 String itemName = result.getString("name");
                 int totalQuantity = result.getInt("total_quantity");
-                model.addRow(new Object[]{itemName, totalQuantity});
+                double salesValue = result.getDouble("item_sales");
+                model.addRow(new Object[]{itemName, totalQuantity, "$" + salesValue});
             }
             result.close();
         }
