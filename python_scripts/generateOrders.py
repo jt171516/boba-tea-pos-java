@@ -42,6 +42,7 @@ def generate_sharetea_data():
     ]
     
     all_orders = []
+    all_junction_entries = []
     current_order_id = 1
     
     for day_index in range(DAYS):
@@ -79,10 +80,14 @@ def generate_sharetea_data():
                 "totalprice": order_total,
                 "date": order_datetime
             })
-            
+
+            all_junction_entries.append({
+                "orderid": current_order_id,
+                "itemid": item_id,
+            })
             current_order_id += 1
     
-    return all_orders
+    return all_orders, all_junction_entries
 
 def write_csv_file(filename, orders):
     """
@@ -99,9 +104,20 @@ def write_csv_file(filename, orders):
                 o["date"].strftime("%Y-%m-%d %H:%M:%S")
             ])
 
+def write_junction_csv_file(filename, item_order_junction):
+    with open(filename, mode='w', newline='', encoding='utf-8') as f:
+        writer = csv.writer(f)
+        writer.writerow(["orderid", "itemid"])
+        for o in item_order_junction:
+            writer.writerow([
+                o["orderid"],
+                o["itemid"]
+            ])
+
 def main():
-    orders = generate_sharetea_data()
+    orders, item_order_junction = generate_sharetea_data()
     write_csv_file("orders.csv", orders)
+    write_junction_csv_file("junction.csv", item_order_junction)
 
 if __name__ == "__main__":
     main()
