@@ -1378,6 +1378,14 @@ public class GUI extends JFrame implements ActionListener {
                                 junctionStmt.setInt(1, newOrderId);
                                 junctionStmt.setInt(2, itemId);
                                 junctionStmt.executeUpdate();
+
+                                //update sales
+                                String updateSalesSql = "UPDATE item SET sales = sales + 1 WHERE id = ?";
+                                try (PreparedStatement updateStmt = conn.prepareStatement(updateSalesSql)) 
+                                {
+                                    updateStmt.setInt(1, itemId);
+                                    updateStmt.executeUpdate();
+                                }
                             }
                         } 
                         catch (SQLException ex) 
