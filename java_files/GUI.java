@@ -1447,8 +1447,15 @@ public class GUI extends JFrame implements ActionListener {
                     ResultSet result = stmt.executeQuery(sqlStatement);
 
                     if (result.next()) {
+                        String locPassword = result.getString("password");
                         boolean isManager = result.getBoolean("manager");
-                        showMainPage(isManager);
+
+                        String inputPassword = new String(passwordField.getPassword());
+                        if (locPassword.equals(inputPassword)){
+                            showMainPage(isManager);
+                        } else{
+                            JOptionPane.showMessageDialog(null,"Invalid password.");
+                        }
                     } else {
                         JOptionPane.showMessageDialog(null, "Invalid username.");
                     }
