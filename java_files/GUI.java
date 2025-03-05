@@ -122,50 +122,57 @@ public class GUI extends JFrame implements ActionListener {
     public static void showLoginPage() {
         f = new JFrame("Login");
 
-        JPanel mainPanel = new JPanel(new BorderLayout());
+        JPanel mainPanel = new JPanel(new GridBagLayout());
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(50, 10, 10, 10);
+        gbc.anchor = GridBagConstraints.CENTER;
 
         // Image panel
         JLabel imageLabel = new JLabel(new ImageIcon("../images/logo.png"));
-        JPanel imagePanel = new JPanel();
-        imagePanel.add(imageLabel);
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        gbc.gridwidth = 2;
+        mainPanel.add(imageLabel, gbc);
 
         // Fields panel
         JPanel fieldsPanel = new JPanel(new GridBagLayout());
-        GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(5, 5, 5, 5); // Padding
-        gbc.anchor = GridBagConstraints.WEST;
+        GridBagConstraints fieldsGbc = new GridBagConstraints();
+        fieldsGbc.insets = new Insets(5, 5, 5, 5); // Padding
+        fieldsGbc.anchor = GridBagConstraints.WEST;
 
         // Username label and field
-        gbc.gridx = 0;
-        gbc.gridy = 0;
-        fieldsPanel.add(new JLabel("Username:"), gbc);
+        fieldsGbc.gridx = 0;
+        fieldsGbc.gridy = 0;
+        fieldsPanel.add(new JLabel("Username:"), fieldsGbc);
 
-        gbc.gridx = 1;
-        userIdField = new JTextField(30); // Increased column size for better visibility
-        userIdField.setPreferredSize(new Dimension(300, 30)); // Set preferred size
-        fieldsPanel.add(userIdField, gbc);
+        fieldsGbc.gridx = 1;
+        userIdField = new JTextField(30);
+        userIdField.setPreferredSize(new Dimension(300, 30));
+        fieldsPanel.add(userIdField, fieldsGbc);
 
         // Password label and field
-        gbc.gridx = 0;
-        gbc.gridy = 1;
-        fieldsPanel.add(new JLabel("Password:"), gbc);
+        fieldsGbc.gridx = 0;
+        fieldsGbc.gridy = 1;
+        fieldsPanel.add(new JLabel("Password:"), fieldsGbc);
 
-        gbc.gridx = 1;
-        passwordField = new JPasswordField(30); // Increased column size for better visibility
-        passwordField.setPreferredSize(new Dimension(300, 30)); // Set preferred size
-        fieldsPanel.add(passwordField, gbc);
+        fieldsGbc.gridx = 1;
+        passwordField = new JPasswordField(30); 
+        passwordField.setPreferredSize(new Dimension(300, 30)); 
+        fieldsPanel.add(passwordField, fieldsGbc);
 
         // Login button
-        gbc.gridx = 1;
-        gbc.gridy = 2;
-        gbc.anchor = GridBagConstraints.CENTER;
+        fieldsGbc.gridx = 1;
+        fieldsGbc.gridy = 2;
+        fieldsGbc.anchor = GridBagConstraints.CENTER;
         loginButton = new JButton("Login");
         loginButton.addActionListener(new GUI(isManager));
-        fieldsPanel.add(loginButton, gbc);
+        fieldsPanel.add(loginButton, fieldsGbc);
 
-        // Add panels to main panel
-        mainPanel.add(imagePanel, BorderLayout.CENTER);
-        mainPanel.add(fieldsPanel, BorderLayout.SOUTH);
+        // Add fields panel to main panel
+        gbc.gridx = 0;
+        gbc.gridy = 1;
+        gbc.gridwidth = 2;
+        mainPanel.add(fieldsPanel, gbc);
 
         f.add(mainPanel);
 
