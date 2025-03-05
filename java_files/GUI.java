@@ -122,25 +122,52 @@ public class GUI extends JFrame implements ActionListener {
     public static void showLoginPage() {
         f = new JFrame("Login");
 
-        JPanel p = new JPanel();
+        JPanel mainPanel = new JPanel(new BorderLayout());
 
-        JLabel userIdLabel = new JLabel("Username:");
-        userIdField = new JTextField(20);
+        // Image panel
+        JLabel imageLabel = new JLabel(new ImageIcon("../images/logo.png"));
+        JPanel imagePanel = new JPanel();
+        imagePanel.add(imageLabel);
 
-        JLabel passwordLabel = new JLabel("Password:");
-        passwordField = new JPasswordField(20);
+        // Fields panel
+        JPanel fieldsPanel = new JPanel(new GridBagLayout());
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(5, 5, 5, 5); // Padding
+        gbc.anchor = GridBagConstraints.WEST;
 
+        // Username label and field
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        fieldsPanel.add(new JLabel("Username:"), gbc);
+
+        gbc.gridx = 1;
+        userIdField = new JTextField(30); // Increased column size for better visibility
+        userIdField.setPreferredSize(new Dimension(300, 30)); // Set preferred size
+        fieldsPanel.add(userIdField, gbc);
+
+        // Password label and field
+        gbc.gridx = 0;
+        gbc.gridy = 1;
+        fieldsPanel.add(new JLabel("Password:"), gbc);
+
+        gbc.gridx = 1;
+        passwordField = new JPasswordField(30); // Increased column size for better visibility
+        passwordField.setPreferredSize(new Dimension(300, 30)); // Set preferred size
+        fieldsPanel.add(passwordField, gbc);
+
+        // Login button
+        gbc.gridx = 1;
+        gbc.gridy = 2;
+        gbc.anchor = GridBagConstraints.CENTER;
         loginButton = new JButton("Login");
         loginButton.addActionListener(new GUI(isManager));
+        fieldsPanel.add(loginButton, gbc);
 
-        p.add(userIdLabel);
-        p.add(userIdField);
-        p.add(passwordLabel);
-        p.add(passwordField);
-        p.add(loginButton);
-        p.add(new JLabel(new ImageIcon("../images/logo.png")));
+        // Add panels to main panel
+        mainPanel.add(imagePanel, BorderLayout.CENTER);
+        mainPanel.add(fieldsPanel, BorderLayout.SOUTH);
 
-        f.add(p);
+        f.add(mainPanel);
 
         f.setSize(1000, 700);
         f.setVisible(true);
