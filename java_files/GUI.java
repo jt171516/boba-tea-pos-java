@@ -741,33 +741,19 @@ public class GUI extends JFrame implements ActionListener {
         }
 
         //delete inventory item from inventory table
-
         String sql = "DELETE FROM inventory WHERE id = ? AND name = ?";
+
         try (PreparedStatement stmt = conn.prepareStatement(sql))
         {
             stmt.setInt(1, itemId);
             stmt.setString(2, name);
             stmt.executeUpdate();
         }
+
+        //if item is already in iteminventoryjunction, then pop up cannot remove warning
         catch (SQLException e)
         {
-            e.printStackTrace();
-            JOptionPane.showMessageDialog(this, "Error executing query: " + e.getMessage());
-            return;
-        }
-
-        //delete inventory item from iteminventoryjunction
-
-        String junctionSql = "DELETE FROM iteminventoryjunction WHERE inventoryid = ?";
-        try (PreparedStatement junctionStmt = conn.prepareStatement(junctionSql))
-        {
-            junctionStmt.setInt(1, itemId);
-            junctionStmt.executeUpdate();
-        }
-        catch (SQLException e)
-        {
-            e.printStackTrace();
-            JOptionPane.showMessageDialog(this, "Error executing query: " + e.getMessage());
+            JOptionPane.showMessageDialog(this, "Cannot remove inventory as items depend upon it", "Error", JOptionPane.WARNING_MESSAGE);
             return;
         }
     }
@@ -860,10 +846,101 @@ public class GUI extends JFrame implements ActionListener {
         }
     }
 
-    private void loadItemsManager(DefaultTableModel model)
+
+    //helper function which gets the id of an item based on its name
+    private int getItemId (String itemName)
     {
-        if (conn == null)
+
+        String sql = "SELECT id FROM item WHERE name = ?";
+
+        try (PreparedStatement stmt = conn.prepareStatement(sql))
         {
+            stmt.setString(1,itemName);
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next())
+            {
+                return rs.getInt("id");
+            }
+        }
+        catch (SQLException e)
+        {
+            e.printStackTrace();
+        }
+        return -1;
+    }
+
+    public boolean hasZeroStock(int itemId)
+    {
+        String checkSql = "SELECT COUNT(*) FROM iteminventoryjunction " +
+                "JOIN inventory ON iteminventoryjunction.inventoryid = inventory.id " +
+                "WHERE itemid = ? AND qty = 0";
+
+        try (PreparedStatement checkStmt = conn.prepareStatement(checkSql))
+        {
+            checkStmt.setInt(1,itemId);
+            ResultSet rs = checkStmt.executeQuery();
+
+            if (rs.next())
+            {
+                //if count > 0, at least one inventory has qty = 0
+                return rs.getInt(1) > 0;
+            }
+        }
+        catch (SQLException e)
+        {
+            e.printStackTrace();
+        }
+        return false;
+    }
+
+    private boolean reduceStock (int itemId)
+    {
+
+        String fetchInventorySQL = "SELECT inventory.id, inventory.qty FROM inventory " +
+                "JOIN iteminventoryjunction ON inventory.id = iteminventoryjunction.inventoryid " +
+                "WHERE iteminventoryjunction.itemid = ? " +
+                "ORDER BY inventory.qty DESC"; //priortize highest stock first
+
+        try (PreparedStatement fetchstmt = conn.prepareStatement(fetchInventorySQL))
+        {
+            fetchstmt.setInt(1,itemId);
+            ResultSet rs = fetchstmt.executeQuery();
+
+            while (rs.next())
+            {
+                int inventoryId = rs.getInt("id");
+                int currentQty = rs.getInt("qty");
+
+                updateStock(inventoryId);
+            }
+        }
+        catch (SQLException e)
+        {
+            e.printStackTrace();
+        }
+        return false; //no available stock in inventory
+    }
+
+    private boolean updateStock(int inventoryId)
+    {
+        String updateStockSQL = "UPDATE inventory SET qty = qty - 1 WHERE id = ?";
+
+        try (PreparedStatement updateStmt = conn.prepareStatement(updateStockSQL))
+        {
+            updateStmt.setInt(1,inventoryId);
+            int affectedRows = updateStmt.executeUpdate();
+            return affectedRows > 0; //if there are zero inventory rows without a qty > 0, then return false
+        }
+        catch (SQLException e)
+        {
+            e.printStackTrace();
+        }
+        return false;
+    }
+
+    private void loadItemsManager(DefaultTableModel model) {
+        if (conn == null) {
+
             return;
         }
 
@@ -1320,8 +1397,25 @@ public class GUI extends JFrame implements ActionListener {
                             }
                             orderItems.append(itemName);
 
+                            //get item id from itemName in item table
+                            int itemId = getItemId(itemName);
+
+                            //check if any inventory needed for the item has a qty of zero
+                            if (hasZeroStock(itemId))
+                            {
+                                JOptionPane.showMessageDialog(this, "Order cannot be created! " + itemName + " has an inventory with 0 stock");
+                                orderArea.setText("");
+                                return;
+                            }
+
+                            //reduce stock from inventory
+                            reduceStock(itemId);
+
+                            populateInventoryTable(inventoryTableModel);
+
                             //store item in name in list for junc ins
                             itemNames.add(itemName);
+
                         }
                     }
 
