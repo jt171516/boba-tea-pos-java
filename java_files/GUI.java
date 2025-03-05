@@ -8,6 +8,7 @@ import javax.swing.event.ChangeEvent;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Calendar;
 
 public class GUI extends JFrame implements ActionListener {
@@ -1225,6 +1226,25 @@ public class GUI extends JFrame implements ActionListener {
         dialog.setVisible(true);
     }
     
+    private int getItemIdByName(String itemName) throws SQLException 
+    {
+        String sql = "SELECT id FROM item WHERE name = ? LIMIT 1";
+        try (PreparedStatement epicStatement = conn.prepareStatement(sql)) 
+        {
+            epicStatement.setString(1, itemName);
+            try (ResultSet rst = epicStatement.executeQuery()) 
+            {
+                if (rst.next()) 
+                {
+                    return rst.getInt("id");
+                } 
+                else 
+                {
+                    return -1; //error
+                }
+            }
+        }
+    }
     
     //action listener
     @Override
@@ -1270,12 +1290,14 @@ public class GUI extends JFrame implements ActionListener {
                 if (orderText.isEmpty())
                 {
                     JOptionPane.showMessageDialog(this, "no order to submit!!!!");
+                    break;
                 }
                 else
                 {
                     String[] lines = orderText.split("\\n");
                     double totalPrice = 0.0;
                     StringBuilder orderItems = new StringBuilder();
+                    java.util.List<String> itemNames = new ArrayList<>(); //item names
 
                     for (String line : lines)
                     {
@@ -1297,25 +1319,78 @@ public class GUI extends JFrame implements ActionListener {
                                 orderItems.append(", ");
                             }
                             orderItems.append(itemName);
+
+                            //store item in name in list for junc ins
+                            itemNames.add(itemName);
                         }
                     }
+
+                    if (itemNames.isEmpty()) 
+                    {
+                        JOptionPane.showMessageDialog(this, "no valid items in order sad");
+                        break;
+                    }
+                    int newOrderId = -1;
                     try
                     {
-                        String sql = "INSERT INTO Orders (name, totalprice, timestamp) VALUES (?, ?, CURRENT_TIMESTAMP)";
+                        String sql = "INSERT INTO Orders (name, totalprice, timestamp) VALUES (?, ?, CURRENT_TIMESTAMP) RETURNING id";
                         PreparedStatement pStatement = conn.prepareStatement(sql);
                         pStatement.setString(1, orderItems.toString());
                         pStatement.setDouble(2, totalPrice);
-                        pStatement.executeUpdate();
-                        pStatement.close();
-                        JOptionPane.showMessageDialog(this, "order submitted!\n" + "items: " + orderItems.toString() + "\ntotal price: $" + totalPrice);
-                        orderArea.setText("");
-                    }
+                        try (ResultSet rs = pStatement.executeQuery()) 
+                        {
+                            if (rs.next()) 
+                            {
+                                newOrderId = rs.getInt("id");
+                            }
+                        }
+                        } 
+                        catch (SQLException ex) 
+                        {
+                            JOptionPane.showMessageDialog(this, "error insert order sad: " + ex.getMessage());
+                            break;
+                        }
                     catch(Exception e1)
                     {
                         JOptionPane.showMessageDialog(this, "submitting order failed sad " + e1.getMessage());
                     }
+                    if (newOrderId == -1) 
+                    {
+                        JOptionPane.showMessageDialog(this, "fail to get new order id sad");
+                        break;
+                    }
+                    for (String itemName : itemNames) 
+                    {
+                        try 
+                        {
+                            int itemId = getItemIdByName(itemName);
+                            if (itemId == -1) 
+                            {
+                                JOptionPane.showMessageDialog(this, "no item found with name: " + itemName);
+                                continue;
+                            }
+                
+                            String junctionSql = 
+                                "INSERT INTO ordersitemjunction (orderid, itemid) " +
+                                "VALUES (?, ?)";
+                            try (PreparedStatement junctionStmt = conn.prepareStatement(junctionSql)) 
+                            {
+                                junctionStmt.setInt(1, newOrderId);
+                                junctionStmt.setInt(2, itemId);
+                                junctionStmt.executeUpdate();
+                            }
+                        } 
+                        catch (SQLException ex) 
+                        {
+                            JOptionPane.showMessageDialog(this, "error insert item: " + itemName 
+                                  + ": into ordersitemjunction: " + ex.getMessage());
+                        }
+                    }
+                    JOptionPane.showMessageDialog(this, 
+                        "order submitted!!!!!\nitems: " + orderItems.toString() + "\total price: $" + totalPrice);
+                    orderArea.setText("");
                 }
-                break;
+                    break;
             case "updateDateTime":
                 updateDateTime();
                 break;
