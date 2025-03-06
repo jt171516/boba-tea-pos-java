@@ -674,6 +674,30 @@ public class GUI extends JFrame implements ActionListener {
 
     }
 
+    private int getInventoryCount (int itemId)
+    {
+        int inventoryCount = 0;
+        String fetchInventorySQL = "SELECT COUNT(*) AS inventory_count FROM inventory " +
+                "JOIN iteminventoryjunction ON inventory.id = iteminventoryjunction.inventoryid " +
+                "WHERE iteminventoryjunction.itemid = ?";
+
+        try (PreparedStatement fetchstmt = conn.prepareStatement(fetchInventorySQL))
+        {
+            fetchstmt.setInt(1,itemId);
+            ResultSet rs = fetchstmt.executeQuery();
+
+            if (rs.next())
+            {
+                inventoryCount = rs.getInt("inventory_count");
+            }
+        }
+
+        catch (SQLException e)
+        {
+            e.printStackTrace();
+        }
+        return inventoryCount;
+    }
     /**
     *@author jason agnew
     *@param none
@@ -692,53 +716,65 @@ public class GUI extends JFrame implements ActionListener {
         String sql = "";
         switch (period) {
             case "12 hours":
-                sql = "SELECT name, COUNT(orders) AS total_quantity, " +
-                      "SUM(totalprice) AS item_sales " +
-                      "FROM orders " +
-                      "WHERE orders.timestamp >= NOW() - INTERVAL '12 hours' " +
-                      "GROUP BY name";
+                sql = "SELECT i.name AS item_name, oi.itemid, COUNT(oi.itemid) AS total_quantity, " +
+                      "SUM(i.price) AS item_sales " +
+                      "FROM orders o " +
+                      "JOIN ordersitemjunction oi ON o.id = oi.orderid " +
+                      "JOIN item i ON oi.itemid = i.id " +
+                      "WHERE o.timestamp >= NOW() - INTERVAL '12 hours' " +
+                      "GROUP BY oi.itemid, i.name";
                 break;
             case "1 day":
-                sql = "SELECT name, COUNT(orders) AS total_quantity, " +
-                      "SUM(totalprice) AS item_sales " +
-                      "FROM orders " +
-                      "WHERE orders.timestamp >= NOW() - INTERVAL '1 day' " +
-                      "GROUP BY name";
+                sql = "SELECT i.name AS item_name, oi.itemid, COUNT(oi.itemid) AS total_quantity, " +
+                        "SUM(i.price) AS item_sales " +
+                        "FROM orders o " +
+                        "JOIN ordersitemjunction oi ON o.id = oi.orderid " +
+                        "JOIN item i ON oi.itemid = i.id " +
+                        "WHERE o.timestamp >= NOW() - INTERVAL '1 day' " +
+                        "GROUP BY oi.itemid, i.name";
                 break;
             case "2 days":
-                sql = "SELECT name, COUNT(orders) AS total_quantity, " +
-                      "SUM(totalprice) AS item_sales " +
-                      "FROM orders " +
-                      "WHERE orders.timestamp >= NOW() - INTERVAL '2 days' " +
-                      "GROUP BY name";
+                sql = "SELECT i.name AS item_name, oi.itemid, COUNT(oi.itemid) AS total_quantity, " +
+                        "SUM(i.price) AS item_sales " +
+                        "FROM orders o " +
+                        "JOIN ordersitemjunction oi ON o.id = oi.orderid " +
+                        "JOIN item i ON oi.itemid = i.id " +
+                        "WHERE o.timestamp >= NOW() - INTERVAL '2 days' " +
+                        "GROUP BY oi.itemid, i.name";
                 break;
             case "1 week":
-                sql = "SELECT name, COUNT(orders) AS total_quantity, " +
-                      "SUM(totalprice) AS item_sales " +
-                      "FROM orders " +
-                      "WHERE orders.timestamp >= NOW() - INTERVAL '1 week' " +
-                      "GROUP BY name";
+                sql = "SELECT i.name AS item_name, oi.itemid, COUNT(oi.itemid) AS total_quantity, " +
+                        "SUM(i.price) AS item_sales " +
+                        "FROM orders o " +
+                        "JOIN ordersitemjunction oi ON o.id = oi.orderid " +
+                        "JOIN item i ON oi.itemid = i.id " +
+                        "WHERE o.timestamp >= NOW() - INTERVAL '1 week' " +
+                        "GROUP BY oi.itemid, i.name";
                 break;
             case "1 month":
-                sql = "SELECT name, COUNT(orders) AS total_quantity, " +
-                      "SUM(totalprice) AS item_sales " +
-                      "FROM orders " +
-                      "WHERE orders.timestamp >= NOW() - INTERVAL '1 month' " +
-                      "GROUP BY name";
+                sql = "SELECT i.name AS item_name, oi.itemid, COUNT(oi.itemid) AS total_quantity, " +
+                        "SUM(i.price) AS item_sales " +
+                        "FROM orders o " +
+                        "JOIN ordersitemjunction oi ON o.id = oi.orderid " +
+                        "JOIN item i ON oi.itemid = i.id " +
+                        "WHERE o.timestamp >= NOW() - INTERVAL '1 month' " +
+                        "GROUP BY oi.itemid, i.name";
                 break;
             case "3 months":
-                sql = "SELECT name, COUNT(orders) AS total_quantity, " +
-                      "SUM(totalprice) AS item_sales " +
-                      "FROM orders " +
-                      "WHERE orders.timestamp >= NOW() - INTERVAL '3 months' " +
-                      "GROUP BY name";
+                sql = "SELECT i.name AS item_name, oi.itemid, COUNT(oi.itemid) AS total_quantity, " +
+                        "SUM(i.price) AS item_sales " +
+                        "FROM orders o " +
+                        "JOIN ordersitemjunction oi ON o.id = oi.orderid " +
+                        "JOIN item i ON oi.itemid = i.id " +
+                        "WHERE o.timestamp >= NOW() - INTERVAL '3 months' " +
+                        "GROUP BY oi.itemid, i.name";
                 break;
             default:
                 return;
         }
 
         //add table header
-        DefaultTableModel model = new DefaultTableModel(new String[]{"Item name", "Total Quantity", "Item Sales"}, 0);
+        DefaultTableModel model = new DefaultTableModel(new String[]{"Item name", "Total Quantity", "Item Sales", "Inventory Count"}, 0);
 
         try (PreparedStatement Stmt = conn.prepareStatement(sql))
         {
@@ -746,10 +782,13 @@ public class GUI extends JFrame implements ActionListener {
 
             while (result.next())
             {
-                String itemName = result.getString("name");
+                String itemName = result.getString("item_name");
+                int itemId = result.getInt("itemid");
                 int totalQuantity = result.getInt("total_quantity");
                 double salesValue = result.getDouble("item_sales");
-                model.addRow(new Object[]{itemName, totalQuantity, "$" + salesValue});
+                //getInventoryCount for this item
+                int inventoryCount = getInventoryCount(itemId)*totalQuantity;
+                model.addRow(new Object[]{itemName, totalQuantity, "$" + salesValue, inventoryCount});
             }
             result.close();
         }
