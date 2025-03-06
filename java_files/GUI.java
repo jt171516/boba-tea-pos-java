@@ -120,25 +120,59 @@ public class GUI extends JFrame implements ActionListener {
     public static void showLoginPage() {
         f = new JFrame("Login");
 
-        JPanel p = new JPanel();
+        JPanel mainPanel = new JPanel(new GridBagLayout());
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(50, 10, 10, 10);
+        gbc.anchor = GridBagConstraints.CENTER;
 
-        JLabel userIdLabel = new JLabel("User ID:");
-        userIdField = new JTextField(20);
+        // Image panel
+        JLabel imageLabel = new JLabel(new ImageIcon("../images/logo.png"));
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        gbc.gridwidth = 2;
+        mainPanel.add(imageLabel, gbc);
 
-        JLabel passwordLabel = new JLabel("Password:");
-        passwordField = new JPasswordField(20);
+        // Fields panel
+        JPanel fieldsPanel = new JPanel(new GridBagLayout());
+        GridBagConstraints fieldsGbc = new GridBagConstraints();
+        fieldsGbc.insets = new Insets(5, 5, 5, 5); // Padding
+        fieldsGbc.anchor = GridBagConstraints.WEST;
 
+        // Username label and field
+        fieldsGbc.gridx = 0;
+        fieldsGbc.gridy = 0;
+        fieldsPanel.add(new JLabel("Username:"), fieldsGbc);
+
+        fieldsGbc.gridx = 1;
+        userIdField = new JTextField(30);
+        userIdField.setPreferredSize(new Dimension(300, 30));
+        fieldsPanel.add(userIdField, fieldsGbc);
+
+        // Password label and field
+        fieldsGbc.gridx = 0;
+        fieldsGbc.gridy = 1;
+        fieldsPanel.add(new JLabel("Password:"), fieldsGbc);
+
+        fieldsGbc.gridx = 1;
+        passwordField = new JPasswordField(30); 
+        passwordField.setPreferredSize(new Dimension(300, 30)); 
+        fieldsPanel.add(passwordField, fieldsGbc);
+
+        // Login button
+        fieldsGbc.gridx = 1;
+        fieldsGbc.gridy = 2;
+        fieldsGbc.anchor = GridBagConstraints.CENTER;
         loginButton = new JButton("Login");
         loginButton.addActionListener(new GUI(isManager));
+        fieldsPanel.add(loginButton, fieldsGbc);
 
-        p.add(userIdLabel);
-        p.add(userIdField);
-        p.add(passwordLabel);
-        p.add(passwordField);
-        p.add(loginButton);
-        p.add(new JLabel(new ImageIcon("../images/logo.png")));
+        // Add fields panel to main panel
+        gbc.gridx = 0;
+        gbc.gridy = 1;
+        gbc.gridwidth = 2;
+        mainPanel.add(fieldsPanel, gbc);
 
-        f.add(p);
+        f.add(mainPanel);
 
         f.setSize(1000, 700);
         f.setVisible(true);
@@ -217,6 +251,7 @@ public class GUI extends JFrame implements ActionListener {
         xReportButton.addActionListener(this);
         topPanel.add(xReportButton);
 
+        //add button for z report
         JButton endOfDayButton = new JButton("End of Day (Z-Report)");
         endOfDayButton.addActionListener(e -> showZReportDialog());
         topPanel.add(endOfDayButton);
@@ -1320,6 +1355,96 @@ public class GUI extends JFrame implements ActionListener {
                 pstmt.executeUpdate();
             }
     
+    private void showZReportDialog() {
+        if (conn == null) {
+            return;
+        }
+    
+        double totalSales = 0.0;
+        int totalOrders = 0;
+    
+        String sql = 
+            "SELECT " +
+            "  COALESCE(SUM(o.totalprice), 0) AS total_sales, " +
+            "  COUNT(o.id) AS total_orders " +
+            "FROM orders o " +
+            "WHERE DATE(o.timestamp) = CURRENT_DATE";
+    
+        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                totalSales = rs.getDouble("total_sales");
+                totalOrders = rs.getInt("total_orders");
+            }
+            rs.close();
+        } catch (SQLException e) {
+            JOptionPane.showMessageDialog(this, "Z-Report query error: " + e.getMessage());
+            return;
+        }
+    
+        JDialog zDialog = new JDialog(this, "Z-Report – End of Day", true);
+        zDialog.setSize(400, 300);
+        zDialog.setLayout(new BorderLayout());
+    
+        String reportText = String.format(
+            "End of Day Totals (Today):\n\n" +
+            "Total Sales: $%.2f\n" +
+            "Total Orders: %d\n\n" +
+            "Press 'Next Day' to reset daily data and logout.",
+            totalSales, totalOrders
+        );
+        JTextArea reportArea = new JTextArea(reportText);
+        reportArea.setEditable(false);
+        reportArea.setMargin(new Insets(10,10,10,10));
+    
+        zDialog.add(reportArea, BorderLayout.CENTER);
+    
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        JButton nextDayButton = new JButton("Next Day");
+        JButton cancelButton = new JButton("Cancel");
+    
+        buttonPanel.add(nextDayButton);
+        buttonPanel.add(cancelButton);
+    
+        nextDayButton.addActionListener(evt -> {
+            // Prompt "Are you sure?"
+            int confirm = JOptionPane.showConfirmDialog(
+                zDialog,
+                "Reset and Logout?\n" + 
+                "This will clear today's orders permanently and log you out.",
+                "Confirm Next Day",
+                JOptionPane.YES_NO_OPTION
+            );
+            if (confirm == JOptionPane.YES_OPTION) {
+                // 1) Reset the data
+                resetDailyTotals();
+                // 2) Logout
+                zDialog.dispose();  // close the Z-report dialog
+                showLoginPage();           // or directly do "dispose(); showLoginPage();" 
+            }
+        });
+    
+        cancelButton.addActionListener(evt -> zDialog.dispose());
+    
+        zDialog.add(buttonPanel, BorderLayout.SOUTH);
+        zDialog.setLocationRelativeTo(this);
+        zDialog.setVisible(true);
+    }
+    private void resetDailyTotals() {
+        try {
+            String deleteJunction = 
+                "DELETE FROM ordersitemjunction " +
+                "USING orders " +
+                "WHERE ordersitemjunction.orderid = orders.id " +
+                "  AND DATE(orders.timestamp) = CURRENT_DATE";
+            try (PreparedStatement pstmt = conn.prepareStatement(deleteJunction)) {
+                pstmt.executeUpdate();
+            }
+
+            String deleteOrders = "DELETE FROM orders WHERE DATE(timestamp) = CURRENT_DATE";
+            try (PreparedStatement pstmt = conn.prepareStatement(deleteOrders)) {
+                pstmt.executeUpdate();
+            }
             String resetItemSales = "UPDATE item SET sales = 0";
             try (PreparedStatement pstmt = conn.prepareStatement(resetItemSales)) {
                 pstmt.executeUpdate();
@@ -1334,6 +1459,7 @@ public class GUI extends JFrame implements ActionListener {
             );
         }
     }
+
     private int getItemIdByName(String itemName) throws SQLException 
     {
         String sql = "SELECT id FROM item WHERE name = ? LIMIT 1";
