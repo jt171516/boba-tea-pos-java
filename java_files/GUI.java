@@ -115,7 +115,7 @@ public class GUI extends JFrame implements ActionListener {
         timer.start();
 
         //exit button
-        closeButton = new JButton("Close");
+        closeButton = new JButton("Logout");
         closeButton.addActionListener(this);
         add(closeButton, BorderLayout.SOUTH);
     }
@@ -124,25 +124,59 @@ public class GUI extends JFrame implements ActionListener {
     public static void showLoginPage() {
         f = new JFrame("Login");
 
-        JPanel p = new JPanel();
+        JPanel mainPanel = new JPanel(new GridBagLayout());
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(50, 10, 10, 10);
+        gbc.anchor = GridBagConstraints.CENTER;
 
-        JLabel userIdLabel = new JLabel("Username:");
-        userIdField = new JTextField(20);
+        // Image panel
+        JLabel imageLabel = new JLabel(new ImageIcon("../images/logo.png"));
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        gbc.gridwidth = 2;
+        mainPanel.add(imageLabel, gbc);
 
-        JLabel passwordLabel = new JLabel("Password:");
-        passwordField = new JPasswordField(20);
+        // Fields panel
+        JPanel fieldsPanel = new JPanel(new GridBagLayout());
+        GridBagConstraints fieldsGbc = new GridBagConstraints();
+        fieldsGbc.insets = new Insets(5, 5, 5, 5); // Padding
+        fieldsGbc.anchor = GridBagConstraints.WEST;
 
+        // Username label and field
+        fieldsGbc.gridx = 0;
+        fieldsGbc.gridy = 0;
+        fieldsPanel.add(new JLabel("Username:"), fieldsGbc);
+
+        fieldsGbc.gridx = 1;
+        userIdField = new JTextField(30);
+        userIdField.setPreferredSize(new Dimension(300, 30));
+        fieldsPanel.add(userIdField, fieldsGbc);
+
+        // Password label and field
+        fieldsGbc.gridx = 0;
+        fieldsGbc.gridy = 1;
+        fieldsPanel.add(new JLabel("Password:"), fieldsGbc);
+
+        fieldsGbc.gridx = 1;
+        passwordField = new JPasswordField(30);
+        passwordField.setPreferredSize(new Dimension(300, 30));
+        fieldsPanel.add(passwordField, fieldsGbc);
+
+        // Login button
+        fieldsGbc.gridx = 1;
+        fieldsGbc.gridy = 2;
+        fieldsGbc.anchor = GridBagConstraints.CENTER;
         loginButton = new JButton("Login");
         loginButton.addActionListener(new GUI(isManager));
+        fieldsPanel.add(loginButton, fieldsGbc);
 
-        p.add(userIdLabel);
-        p.add(userIdField);
-        p.add(passwordLabel);
-        p.add(passwordField);
-        p.add(loginButton);
-        p.add(new JLabel(new ImageIcon("../images/logo.png")));
+        // Add fields panel to main panel
+        gbc.gridx = 0;
+        gbc.gridy = 1;
+        gbc.gridwidth = 2;
+        mainPanel.add(fieldsPanel, gbc);
 
-        f.add(p);
+        f.add(mainPanel);
 
         f.setSize(1000, 700);
         f.setVisible(true);
@@ -423,7 +457,7 @@ public class GUI extends JFrame implements ActionListener {
             }
             @Override
             public Class<?> getColumnClass(int columnIndex) {
-                if (columnIndex == 2) { // Manager column is Boolean
+                if (columnIndex == 3) { // Manager column is Boolean
                     return Boolean.class;
                 }
                 return super.getColumnClass(columnIndex);
@@ -440,10 +474,10 @@ public class GUI extends JFrame implements ActionListener {
                 if (column == 1) { // Name column
                     String newName = (String) employeesTableModel.getValueAt(row, column);
                     updateEmployeeName(id, newName);
-                } else if (column == 2) { // Manager column
+                } else if (column == 3) { // Manager column
                     boolean isManager = (boolean) employeesTableModel.getValueAt(row, column);
                     updateEmployeeManagerStatus(id, isManager);
-                } else if (column == 3) {
+                } else if (column == 2) {
                     String newPassword = (String) employeesTableModel.getValueAt(row, column);
                     updateEmployeePassword(id, newPassword);
                 }
@@ -506,11 +540,11 @@ public class GUI extends JFrame implements ActionListener {
             while (rs.next()) {
                 int id = rs.getInt("id");
                 String name = rs.getString("name");
-                boolean isManager = rs.getBoolean("manager");
                 String password = rs.getString("password");
+                boolean isManager = rs.getBoolean("manager");
 
                 // Convert boolean to string or keep it boolean
-                employeesTableModel.addRow(new Object[]{id, name, isManager, password});
+                employeesTableModel.addRow(new Object[]{id, name, password, isManager});
             }
         } catch (SQLException e) {
             JOptionPane.showMessageDialog(this, "Error loading employees: " + e.getMessage());
@@ -1558,8 +1592,15 @@ public class GUI extends JFrame implements ActionListener {
                     ResultSet result = stmt.executeQuery(sqlStatement);
 
                     if (result.next()) {
+                        String locPassword = result.getString("password");
                         boolean isManager = result.getBoolean("manager");
-                        showMainPage(isManager);
+
+                        String inputPassword = new String(passwordField.getPassword());
+                        if (locPassword.equals(inputPassword)){
+                            showMainPage(isManager);
+                        } else{
+                            JOptionPane.showMessageDialog(null,"Invalid password.");
+                        }
                     } else {
                         JOptionPane.showMessageDialog(null, "Invalid username.");
                     }
@@ -1709,6 +1750,10 @@ public class GUI extends JFrame implements ActionListener {
                     orderArea.setText("");
                 }
                     break;
+            case "Logout":
+                dispose();
+                showLoginPage();
+                break;
             case "updateDateTime":
                 updateDateTime();
                 break;
