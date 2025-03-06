@@ -10,6 +10,8 @@ import java.awt.*;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.HashMap;
+import java.util.Map;
 
 public class GUI extends JFrame implements ActionListener {
     static JFrame f;
@@ -205,9 +207,10 @@ public class GUI extends JFrame implements ActionListener {
         managerPanel.setBorder(new EmptyBorder(10, 10, 10, 10));
 
         JPanel topPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        JLabel revenueLabel = new JLabel("Revenue:");
+        JLabel revenueLabel = new JLabel("Reports:");
 
         productComboBox = new JComboBox<>();
+
         //populate the productCombobBox with all of the items
         populateProductComboBox(productComboBox);
 
@@ -223,18 +226,8 @@ public class GUI extends JFrame implements ActionListener {
         topPanel.add(xReportButton);
 
         // === CENTER PANEL ===
-        JPanel chartPanel = new JPanel()
-        {
-            @Override
-            protected void paintComponent(Graphics g)
-            {
-                super.paintComponent(g);
-                // Simple placeholder line graph:
-                g.drawLine(20, getHeight() - 20, getWidth() - 20, 20);
-            }
-        };
-        chartPanel.setPreferredSize(new Dimension(800, 200));
-        chartPanel.setBorder(BorderFactory.createTitledBorder("Revenue Chart"));
+        JPanel chartPanel = new JPanel() {};
+        chartPanel.setPreferredSize(new Dimension(800, 100));
 
         // We'll put Inventory on the left, Orders on the right.
         JPanel bottomPanel = new JPanel(new GridLayout(1, 2, 10, 10));
@@ -354,9 +347,9 @@ public class GUI extends JFrame implements ActionListener {
         
         //add action listener to fetch sales data for the selected week
         salesReportComboBox.addActionListener(this);
-        salesReportComboBox.setActionCommand("Generate Sales Report");
+        salesReportComboBox.setActionCommand("Generate Inventory Usage and Sales Reports");
 
-        topPanel.add(new JLabel("Generate Sales Report for:"));
+        topPanel.add(new JLabel("Generate Inventory Usage and Sales Reports for:"));
         topPanel.add(salesReportComboBox);
     }
 
@@ -674,16 +667,57 @@ public class GUI extends JFrame implements ActionListener {
 
     }
 
-    private int getInventoryCount (int itemId)
+    private void generateInventoryUsageReport()
+    {
+        DefaultTableModel inventoryModel = new DefaultTableModel(new String[]{"Inventory Name", "Inventory Count"}, 0);
+
+        //loop through the inventoryNames and inventoryCounts to populate the table
+        for (int i = 0; i < inventoryNames.size(); i++) {
+            String inventoryName = inventoryNames.get(i);
+            int inventoryCount = inventoryCounts.get(i);
+            inventoryModel.addRow(new Object[]{inventoryName, inventoryCount});
+        }
+
+        JPanel inventoryReportPanel = new JPanel(new BorderLayout());
+        JTable inventoryTable = new JTable(inventoryModel);
+        JScrollPane inventoryScrollPane = new JScrollPane(inventoryTable);
+
+        JButton closeButton = new JButton("X");
+        closeButton.setPreferredSize(new Dimension(50, 15));
+
+        closeButton.addActionListener(e -> {
+            managerPanel.remove(inventoryReportPanel);
+            managerPanel.revalidate();
+            managerPanel.repaint();
+        });
+
+        JPanel buttonPanel = new JPanel(new BorderLayout());
+        buttonPanel.add(closeButton, BorderLayout.EAST);
+
+        inventoryReportPanel.setBorder(BorderFactory.createTitledBorder("Inventory Usage Report"));
+        inventoryReportPanel.add(inventoryScrollPane, BorderLayout.CENTER);
+        inventoryReportPanel.add(buttonPanel, BorderLayout.NORTH);
+
+        managerPanel.add(inventoryReportPanel, BorderLayout.WEST);
+
+        managerPanel.revalidate();
+        managerPanel.repaint();
+    }
+
+    //function to calculate the total count of inventory used in the orders for a specific item
+    private int getInventoryCount(int inventoryId, int itemId, int totalQuantity)
     {
         int inventoryCount = 0;
-        String fetchInventorySQL = "SELECT COUNT(*) AS inventory_count FROM inventory " +
-                "JOIN iteminventoryjunction ON inventory.id = iteminventoryjunction.inventoryid " +
-                "WHERE iteminventoryjunction.itemid = ?";
+
+        //query to count how many times this specific inventory is associated with the given item
+        String fetchInventorySQL = "SELECT COUNT(*) AS inventory_count " +
+                "FROM iteminventoryjunction ii " +
+                "WHERE ii.inventoryid = ? AND ii.itemid = ?";
 
         try (PreparedStatement fetchstmt = conn.prepareStatement(fetchInventorySQL))
         {
-            fetchstmt.setInt(1,itemId);
+            fetchstmt.setInt(1, inventoryId);
+            fetchstmt.setInt(2, itemId);
             ResultSet rs = fetchstmt.executeQuery();
 
             if (rs.next())
@@ -691,13 +725,15 @@ public class GUI extends JFrame implements ActionListener {
                 inventoryCount = rs.getInt("inventory_count");
             }
         }
-
         catch (SQLException e)
         {
             e.printStackTrace();
         }
-        return inventoryCount;
+
+        //multiply by the total quantity to get the total inventory used for all ordered items of this type
+        return inventoryCount*totalQuantity;
     }
+
     /**
     *@author jason agnew
     *@param none
@@ -705,6 +741,10 @@ public class GUI extends JFrame implements ActionListener {
     *@throws sqlexception
      */
     private JPanel salesReportPanel = null;
+    private ArrayList<Integer> inventoryCounts = new ArrayList<>();
+    private ArrayList<String> inventoryNames = new ArrayList<>();
+
+    //fucntion to generate the sales report for a specific time period
     private void generateSalesReport(String period)
     {
         if (conn == null)
@@ -712,8 +752,9 @@ public class GUI extends JFrame implements ActionListener {
             return;
         }
 
-        //sql query to fetch the weekly order count
         String sql = "";
+
+        //queries for different periods (12 hours, 1 day, 1 week, etc.)
         switch (period) {
             case "12 hours":
                 sql = "SELECT i.name AS item_name, oi.itemid, COUNT(oi.itemid) AS total_quantity, " +
@@ -773,12 +814,14 @@ public class GUI extends JFrame implements ActionListener {
                 return;
         }
 
-        //add table header
-        DefaultTableModel model = new DefaultTableModel(new String[]{"Item name", "Total Quantity", "Item Sales", "Inventory Count"}, 0);
+        DefaultTableModel model = new DefaultTableModel(new String[]{"Item name", "Total Quantity", "Item Sales"}, 0);
 
         try (PreparedStatement Stmt = conn.prepareStatement(sql))
         {
             ResultSet result = Stmt.executeQuery();
+
+            //to track inventory usage for each item
+            HashMap<String, Integer> inventoryMap = new HashMap<>();
 
             while (result.next())
             {
@@ -786,11 +829,40 @@ public class GUI extends JFrame implements ActionListener {
                 int itemId = result.getInt("itemid");
                 int totalQuantity = result.getInt("total_quantity");
                 double salesValue = result.getDouble("item_sales");
-                //getInventoryCount for this item
-                int inventoryCount = getInventoryCount(itemId)*totalQuantity;
-                model.addRow(new Object[]{itemName, totalQuantity, "$" + salesValue, inventoryCount});
+                model.addRow(new Object[]{itemName, totalQuantity, "$" + salesValue});
+
+                //query to get inventory details related to this item
+                String inventorySQL = "SELECT inventory.id, inventory.name FROM inventory " +
+                        "JOIN iteminventoryjunction ii ON inventory.id = ii.inventoryid " +
+                        "WHERE ii.itemid = ?";
+
+                try (PreparedStatement invStmt = conn.prepareStatement(inventorySQL))
+                {
+                    invStmt.setInt(1, itemId);
+                    ResultSet invResult = invStmt.executeQuery();
+
+                    while (invResult.next())
+                    {
+                        String inventoryName = invResult.getString("name");
+                        int inventoryId = invResult.getInt("id");
+                        //get the inventory count
+                        int inventoryCount = getInventoryCount(inventoryId, itemId, totalQuantity);
+
+                        //update the inventory count for this inventory item
+                        inventoryMap.put(inventoryName, inventoryMap.getOrDefault(inventoryName, 0) + inventoryCount);
+                    }
+                }
             }
-            result.close();
+            inventoryCounts.clear();
+            inventoryNames.clear();
+
+            //stor the final inventory counts and names
+            for (Map.Entry<String, Integer> entry : inventoryMap.entrySet())
+            {
+                inventoryNames.add(entry.getKey());
+                inventoryCounts.add(entry.getValue());
+            }
+
         }
         catch (SQLException e)
         {
@@ -1666,9 +1738,10 @@ public class GUI extends JFrame implements ActionListener {
                     populateInventoryTable(inventoryTableModel);
                 }
                 break;
-            case "Generate Sales Report":
+            case "Generate Inventory Usage and Sales Reports":
                 String selectedPeriod = (String) salesReportComboBox.getSelectedItem();
                 generateSalesReport(selectedPeriod);
+                generateInventoryUsageReport();
                 break;
             case "X-Report":
                 xReport();
