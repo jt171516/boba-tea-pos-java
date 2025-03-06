@@ -464,7 +464,7 @@ public class GUI extends JFrame implements ActionListener {
             }
             @Override
             public Class<?> getColumnClass(int columnIndex) {
-                if (columnIndex == 2) { // Manager column is Boolean
+                if (columnIndex == 3) { // Manager column is Boolean
                     return Boolean.class;
                 }
                 return super.getColumnClass(columnIndex);
@@ -481,10 +481,10 @@ public class GUI extends JFrame implements ActionListener {
                 if (column == 1) { // Name column
                     String newName = (String) employeesTableModel.getValueAt(row, column);
                     updateEmployeeName(id, newName);
-                } else if (column == 2) { // Manager column
+                } else if (column == 3) { // Manager column
                     boolean isManager = (boolean) employeesTableModel.getValueAt(row, column);
                     updateEmployeeManagerStatus(id, isManager);
-                } else if (column == 3) {
+                } else if (column == 2) {
                     String newPassword = (String) employeesTableModel.getValueAt(row, column);
                     updateEmployeePassword(id, newPassword);
                 }
@@ -547,11 +547,11 @@ public class GUI extends JFrame implements ActionListener {
             while (rs.next()) {
                 int id = rs.getInt("id");
                 String name = rs.getString("name");
-                boolean isManager = rs.getBoolean("manager");
                 String password = rs.getString("password");
+                boolean isManager = rs.getBoolean("manager");
 
                 // Convert boolean to string or keep it boolean
-                employeesTableModel.addRow(new Object[]{id, name, isManager, password});
+                employeesTableModel.addRow(new Object[]{id, name, password, isManager});
             }
         } catch (SQLException e) {
             JOptionPane.showMessageDialog(this, "Error loading employees: " + e.getMessage());
