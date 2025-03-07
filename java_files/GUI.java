@@ -222,13 +222,18 @@ public class GUI extends JFrame implements ActionListener {
         centerPanel.add(orderScroll);
 
         // submit order
-        submitOrderButton = new JButton("Submit Order");
-        submitOrderButton.addActionListener(this);
+        JPanel orderPaymentPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
+        JButton cashPaymentButton = new JButton("Pay with Cash");
+        JButton cardPaymentButton = new JButton("Pay with Card");
+        cashPaymentButton.addActionListener(this);
+        cardPaymentButton.addActionListener(this);
+        orderPaymentPanel.add(cashPaymentButton);
+        orderPaymentPanel.add(cardPaymentButton);
 
-        // cashier pannel
+        // cashier panel
         cashierPanel.add(topPanel, BorderLayout.NORTH);
         cashierPanel.add(centerPanel, BorderLayout.CENTER);
-        cashierPanel.add(submitOrderButton, BorderLayout.SOUTH);
+        cashierPanel.add(orderPaymentPanel, BorderLayout.SOUTH);
 
         // load menu items from DB
         loadAllMenuItemsForCashier();
@@ -1660,6 +1665,140 @@ public class GUI extends JFrame implements ActionListener {
         zDialog.setVisible(true);
     }
 
+    private void submitOrder(String paymentMethod)
+    {
+        String orderText = orderArea.getText().trim();
+        if (orderText.isEmpty())
+        {
+            JOptionPane.showMessageDialog(this, "no order to submit!!!!");
+            return;
+        }
+        else
+        {
+            String[] lines = orderText.split("\\n");
+            double totalPrice = 0.0;
+            StringBuilder orderItems = new StringBuilder();
+            java.util.List<String> itemNames = new ArrayList<>(); //item names
+
+            for (String line : lines)
+            {
+                String[] parts = line.split(" - \\$");
+                if (parts.length == 2)
+                {
+                    String itemName = parts[0].trim();
+                    double price = 0.0;
+                    try
+                    {
+                        price = Double.parseDouble(parts[1].trim());
+                    } catch (NumberFormatException numberFormatIssue)
+                    {
+                        continue;
+                    }
+                    totalPrice += price;
+                    if (orderItems.length() > 0)
+                    {
+                        orderItems.append(", ");
+                    }
+                    orderItems.append(itemName);
+
+                    //get item id from itemName in item table
+                    int itemId = getItemId(itemName);
+
+                    //check if any inventory needed for the item has a qty of zero
+                    if (hasZeroStock(itemId))
+                    {
+                        JOptionPane.showMessageDialog(this, "Order cannot be created! " + itemName + " has an inventory with 0 stock");
+                        orderArea.setText("");
+                        return;
+                    }
+
+                    //reduce stock from inventory
+                    reduceStock(itemId);
+
+                    populateInventoryTable(inventoryTableModel);
+
+                    //store item in name in list for junc ins
+                    itemNames.add(itemName);
+
+                }
+            }
+
+            if (itemNames.isEmpty())
+            {
+                JOptionPane.showMessageDialog(this, "no valid items in order sad");
+                return;
+            }
+            int newOrderId = -1;
+            try
+            {
+                String sql = "INSERT INTO Orders (name, totalprice, timestamp, payment) VALUES (?, ?, CURRENT_TIMESTAMP, ?) RETURNING id";
+                PreparedStatement pStatement = conn.prepareStatement(sql);
+                pStatement.setString(1, orderItems.toString());
+                pStatement.setDouble(2, totalPrice);
+                pStatement.setString(3, paymentMethod);
+                try (ResultSet rs = pStatement.executeQuery())
+                {
+                    if (rs.next())
+                    {
+                        newOrderId = rs.getInt("id");
+                    }
+                }
+            }
+            catch (SQLException ex)
+            {
+                JOptionPane.showMessageDialog(this, "error insert order sad: " + ex.getMessage());
+                return;
+            }
+            catch(Exception e1)
+            {
+                JOptionPane.showMessageDialog(this, "submitting order failed sad " + e1.getMessage());
+            }
+            if (newOrderId == -1)
+            {
+                JOptionPane.showMessageDialog(this, "fail to get new order id sad");
+                return;
+            }
+            for (String itemName : itemNames)
+            {
+                try
+                {
+                    int itemId = getItemIdByName(itemName);
+                    if (itemId == -1)
+                    {
+                        JOptionPane.showMessageDialog(this, "no item found with name: " + itemName);
+                        continue;
+                    }
+
+                    String junctionSql =
+                            "INSERT INTO ordersitemjunction (orderid, itemid) " +
+                                    "VALUES (?, ?)";
+                    try (PreparedStatement junctionStmt = conn.prepareStatement(junctionSql))
+                    {
+                        junctionStmt.setInt(1, newOrderId);
+                        junctionStmt.setInt(2, itemId);
+                        junctionStmt.executeUpdate();
+
+                        //update sales
+                        String updateSalesSql = "UPDATE item SET sales = sales + 1 WHERE id = ?";
+                        try (PreparedStatement updateStmt = conn.prepareStatement(updateSalesSql))
+                        {
+                            updateStmt.setInt(1, itemId);
+                            updateStmt.executeUpdate();
+                        }
+                    }
+                }
+                catch (SQLException ex)
+                {
+                    JOptionPane.showMessageDialog(this, "error insert item: " + itemName
+                            + ": into ordersitemjunction: " + ex.getMessage());
+                }
+            }
+            JOptionPane.showMessageDialog(this,
+                    "order submitted!!!!!\nitems: " + orderItems.toString() + "\total price: $" + totalPrice + "\nPayment method: " + paymentMethod);
+            orderArea.setText("");
+        }
+    }
+
     //action listener
     @Override
     public void actionPerformed(ActionEvent e)
@@ -1706,136 +1845,13 @@ public class GUI extends JFrame implements ActionListener {
                     loadAllMenuItemsForCashier();
                 }
                 break;
-            case "Submit Order":
-                String orderText = orderArea.getText().trim();
-                if (orderText.isEmpty())
-                {
-                    JOptionPane.showMessageDialog(this, "no order to submit!!!!");
-                    break;
-                }
-                else
-                {
-                    String[] lines = orderText.split("\\n");
-                    double totalPrice = 0.0;
-                    StringBuilder orderItems = new StringBuilder();
-                    java.util.List<String> itemNames = new ArrayList<>(); //item names
-
-                    for (String line : lines)
-                    {
-                        String[] parts = line.split(" - \\$");
-                        if (parts.length == 2)
-                        {
-                            String itemName = parts[0].trim();
-                            double price = 0.0;
-                            try
-                            {
-                                price = Double.parseDouble(parts[1].trim());
-                            } catch (NumberFormatException numberFormatIssue)
-                            {
-                                continue;
-                            }
-                            totalPrice += price;
-                            if (orderItems.length() > 0)
-                            {
-                                orderItems.append(", ");
-                            }
-                            orderItems.append(itemName);
-
-                            //get item id from itemName in item table
-                            int itemId = getItemId(itemName);
-
-                            //check if any inventory needed for the item has a qty of zero
-                            if (hasZeroStock(itemId))
-                            {
-                                JOptionPane.showMessageDialog(this, "Order cannot be created! " + itemName + " has an inventory with 0 stock");
-                                orderArea.setText("");
-                                return;
-                            }
-
-                            //reduce stock from inventory
-                            reduceStock(itemId);
-
-                            populateInventoryTable(inventoryTableModel);
-
-                            //store item in name in list for junc ins
-                            itemNames.add(itemName);
-
-                        }
-                    }
-
-                    if (itemNames.isEmpty())
-                    {
-                        JOptionPane.showMessageDialog(this, "no valid items in order sad");
-                        break;
-                    }
-                    int newOrderId = -1;
-                    try
-                    {
-                        String sql = "INSERT INTO Orders (name, totalprice, timestamp) VALUES (?, ?, CURRENT_TIMESTAMP) RETURNING id";
-                        PreparedStatement pStatement = conn.prepareStatement(sql);
-                        pStatement.setString(1, orderItems.toString());
-                        pStatement.setDouble(2, totalPrice);
-                        try (ResultSet rs = pStatement.executeQuery())
-                        {
-                            if (rs.next())
-                            {
-                                newOrderId = rs.getInt("id");
-                            }
-                        }
-                    }
-                    catch (SQLException ex)
-                    {
-                        JOptionPane.showMessageDialog(this, "error insert order sad: " + ex.getMessage());
-                        break;
-                    }
-                    catch(Exception e1)
-                    {
-                        JOptionPane.showMessageDialog(this, "submitting order failed sad " + e1.getMessage());
-                    }
-                    if (newOrderId == -1)
-                    {
-                        JOptionPane.showMessageDialog(this, "fail to get new order id sad");
-                        break;
-                    }
-                    for (String itemName : itemNames)
-                    {
-                        try
-                        {
-                            int itemId = getItemIdByName(itemName);
-                            if (itemId == -1)
-                            {
-                                JOptionPane.showMessageDialog(this, "no item found with name: " + itemName);
-                                continue;
-                            }
-
-                            String junctionSql =
-                                    "INSERT INTO ordersitemjunction (orderid, itemid) " +
-                                            "VALUES (?, ?)";
-                            try (PreparedStatement junctionStmt = conn.prepareStatement(junctionSql))
-                            {
-                                junctionStmt.setInt(1, newOrderId);
-                                junctionStmt.setInt(2, itemId);
-                                junctionStmt.executeUpdate();
-
-                                //update sales
-                                String updateSalesSql = "UPDATE item SET sales = sales + 1 WHERE id = ?";
-                                try (PreparedStatement updateStmt = conn.prepareStatement(updateSalesSql))
-                                {
-                                    updateStmt.setInt(1, itemId);
-                                    updateStmt.executeUpdate();
-                                }
-                            }
-                        }
-                        catch (SQLException ex)
-                        {
-                            JOptionPane.showMessageDialog(this, "error insert item: " + itemName
-                                    + ": into ordersitemjunction: " + ex.getMessage());
-                        }
-                    }
-                    JOptionPane.showMessageDialog(this,
-                            "order submitted!!!!!\nitems: " + orderItems.toString() + "\total price: $" + totalPrice);
-                    orderArea.setText("");
-                }
+            case "Pay with Cash":
+                String cashPayment = "cash";
+                submitOrder(cashPayment);
+                break;
+            case "Pay with Card":
+                String cardPayment = "card";
+                submitOrder(cardPayment);
                 break;
             case "Logout":
                 dispose();
