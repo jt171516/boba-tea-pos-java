@@ -1520,50 +1520,50 @@ public class GUI extends JFrame implements ActionListener {
         return exists;
     }
 
-    private void xReport()
-    {
-        if (conn == null)
-        {
+    private void xReport() {
+        if (conn == null) {
             return;
         }
-
+    
         String sql =
-                "SELECT " +
-                        "   EXTRACT(HOUR FROM o.timestamp) AS hour, " +
-                        "   COUNT(DISTINCT o.id) AS total_orders, " +
-                        "   COALESCE(SUM(o.totalprice), 0) AS total_revenue, " +
-                        "   COUNT(oj.itemid) AS total_items " +
-                        "FROM orders o " +
-                        "LEFT JOIN ordersitemjunction oj ON o.id = oj.orderid " +
-                        "WHERE DATE(o.timestamp) = CURRENT_DATE " +
-                        "GROUP BY hour " +
-                        "ORDER BY hour;";
-
-        String[] stringStuff = new String[]{"Hour", "Total Orders", "Total Revenue", "Total Items"};
-        DefaultTableModel model = new DefaultTableModel(stringStuff, 0);
-
-        try (PreparedStatement st = conn.prepareStatement(sql))
-        {
+        "SELECT " +
+        "   EXTRACT(HOUR FROM o.timestamp) AS hour, " +
+        "   COUNT(DISTINCT o.id) AS total_orders, " +
+        "   COALESCE(SUM(CASE WHEN o.totalprice > 0 THEN o.totalprice ELSE 0 END), 0) AS total_sales, " +
+        "   COALESCE(SUM(CASE WHEN o.totalprice < 0 THEN -o.totalprice ELSE 0 END), 0) AS total_returns, " +
+        "   COUNT(oj.itemid) AS total_items, " +
+        "   COUNT(CASE WHEN o.payment = 'cash' THEN 1 END) AS cash_payments, " +
+        "   COUNT(CASE WHEN o.payment = 'card' THEN 1 END) AS card_payments " +
+        "FROM orders o " +
+        "LEFT JOIN ordersitemjunction oj ON o.id = oj.orderid " +
+        "WHERE DATE(o.timestamp) = CURRENT_DATE " +
+        "  AND o.is_closed = FALSE " + 
+        "GROUP BY hour " +
+        "ORDER BY hour;";
+    
+        String[] columns = {"Hour", "Total Orders", "Sales", "Returns", "Total Items", "Cash", "Card"};
+        DefaultTableModel model = new DefaultTableModel(columns, 0);
+    
+        try (PreparedStatement st = conn.prepareStatement(sql)) {
             ResultSet rst = st.executeQuery();
-            while (rst.next())
-            {
+            while (rst.next()) {
                 int hour = rst.getInt("hour");
                 int totalOrders = rst.getInt("total_orders");
-                int totalRevenue = rst.getInt("total_revenue");
+                int totalSales = rst.getInt("total_sales");
+                int totalReturns = rst.getInt("total_returns");
                 int totalItems = rst.getInt("total_items");
-                Object[] lmao = new Object[]{hour, totalOrders, totalRevenue, totalItems};
-                model.addRow(lmao);
+                int cash = rst.getInt("cash_payments");
+                int card = rst.getInt("card_payments");
+                model.addRow(new Object[]{hour, totalOrders, totalSales, totalReturns, totalItems, cash, card});
             }
             rst.close();
-        }
-        catch (SQLException e)
-        {
-            JOptionPane.showMessageDialog(this, "x-report failed sad" + e.getMessage());
+        } catch (SQLException e) {
+            JOptionPane.showMessageDialog(this, "X-report failed: " + e.getMessage());
             return;
         }
-
-        JDialog dialog = new JDialog(this, "x-report sales per hour for today:");
-        dialog.setSize(600, 400);
+    
+        JDialog dialog = new JDialog(this, "X-Report: Hourly Sales Summary");
+        dialog.setSize(800, 400);
         JTable table = new JTable(model);
         dialog.add(new JScrollPane(table));
         dialog.setLocationRelativeTo(this);
@@ -1591,76 +1591,93 @@ public class GUI extends JFrame implements ActionListener {
     }
 
     private void showZReportDialog() {
-        if (conn == null) {
-            return;
-        }
-
+        if (conn == null) return;
+    
         double totalSales = 0.0;
-        int totalOrders = 0;
-
-        String sql =
-                "SELECT " +
-                        "  COALESCE(SUM(o.totalprice), 0) AS total_sales, " +
-                        "  COUNT(o.id) AS total_orders " +
-                        "FROM orders o " +
-                        "WHERE DATE(o.timestamp) = CURRENT_DATE";
-
+        double totalCash = 0.0;
+        double totalCard = 0.0;
+        int cashTransactions = 0;
+        int cardTransactions = 0;
+        int totalItemsSold = 0;
+    
+        String sql = "SELECT " +
+                     "COALESCE(SUM(o.totalprice), 0) AS total_sales, " +
+                     "COALESCE(SUM(CASE WHEN o.payment = 'cash' THEN o.totalprice ELSE 0 END), 0) AS cash_total, " +
+                     "COALESCE(SUM(CASE WHEN o.payment = 'card' THEN o.totalprice ELSE 0 END), 0) AS card_total, " +
+                     "COUNT(CASE WHEN o.payment = 'cash' THEN 1 END) AS cash_count, " +
+                     "COUNT(CASE WHEN o.payment = 'card' THEN 1 END) AS card_count, " +
+                     "COUNT(oj.itemid) AS total_items " +
+                     "FROM orders o " +
+                     "LEFT JOIN ordersitemjunction oj ON o.id = oj.orderid " +
+                     "WHERE DATE(o.timestamp) = CURRENT_DATE " +
+                     "  AND o.is_closed = false;";
+    
         try (PreparedStatement stmt = conn.prepareStatement(sql)) {
             ResultSet rs = stmt.executeQuery();
             if (rs.next()) {
                 totalSales = rs.getDouble("total_sales");
-                totalOrders = rs.getInt("total_orders");
+                totalCash = rs.getDouble("cash_total");
+                totalCard = rs.getDouble("card_total");
+                cashTransactions = rs.getInt("cash_count");
+                cardTransactions = rs.getInt("card_count");
+                totalItemsSold = rs.getInt("total_items");
             }
             rs.close();
         } catch (SQLException e) {
-            JOptionPane.showMessageDialog(this, "Z-Report query error: " + e.getMessage());
+            JOptionPane.showMessageDialog(this, "Z-Report Error: " + e.getMessage());
             return;
         }
-
-        JDialog zDialog = new JDialog(this, "Z-Report – End of Day", true);
-        zDialog.setSize(400, 300);
+    
+        JDialog zDialog = new JDialog(this, "Z-Report - End of Day", true);
+        zDialog.setSize(450, 350);
         zDialog.setLayout(new BorderLayout());
-
+    
         String reportText = String.format(
-                "End of Day Totals (Today):\n\n" +
-                        "Total Sales: $%.2f\n" +
-                        "Total Orders: %d\n\n" +
-                        "Press 'Next Day' to logout.",
-                totalSales, totalOrders
+            "End of Day Summary:\n\n" +
+            "Total Sales: $%.2f\n" +
+            "Total Items Sold: %d\n\n" +
+            "Cash Transactions: %d ($%.2f)\n" +
+            "Card Transactions: %d ($%.2f)\n\n" +
+            "This will close the day and reset counters!",
+            totalSales, totalItemsSold,
+            cashTransactions, totalCash,
+            cardTransactions, totalCard
         );
+    
         JTextArea reportArea = new JTextArea(reportText);
         reportArea.setEditable(false);
-        reportArea.setMargin(new Insets(10,10,10,10));
-
+        reportArea.setMargin(new Insets(10, 10, 10, 10));
         zDialog.add(reportArea, BorderLayout.CENTER);
-
+    
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-        JButton nextDayButton = new JButton("Next Day");
+        JButton confirmButton = new JButton("Close Day");
         JButton cancelButton = new JButton("Cancel");
-
-        buttonPanel.add(nextDayButton);
-        buttonPanel.add(cancelButton);
-
-        nextDayButton.addActionListener(evt -> {
-            // Prompt "Are you sure?"
-            int confirm = JOptionPane.showConfirmDialog(
-                    zDialog,
-                    "Logout?\n" +
-                            "This will log you out.",
-                    "Confirm Next Day",
-                    JOptionPane.YES_NO_OPTION
-            );
-            if (confirm == JOptionPane.YES_OPTION) {
-                // Logout
-                zDialog.dispose();  // close the Z-report dialog
+    
+        confirmButton.addActionListener(e -> {
+            try (Statement stmt = conn.createStatement()) {
+                stmt.executeUpdate(
+                    "UPDATE orders SET is_closed = true " +
+                    "WHERE DATE(timestamp) = CURRENT_DATE;"
+                );
+                
+                stmt.executeUpdate("UPDATE item SET sales = 0;");
+                
+                JOptionPane.showMessageDialog(zDialog, "Day closed successfully!");
+                zDialog.dispose();
+                
                 dispose();
-                showLoginPage();           // or directly do "dispose(); showLoginPage();"
+                showLoginPage();
+                
+            } catch (SQLException ex) {
+                JOptionPane.showMessageDialog(zDialog, "Error closing day: " + ex.getMessage());
             }
         });
-
-        cancelButton.addActionListener(evt -> zDialog.dispose());
-
+    
+        cancelButton.addActionListener(e -> zDialog.dispose());
+        buttonPanel.add(confirmButton);
+        buttonPanel.add(cancelButton);
         zDialog.add(buttonPanel, BorderLayout.SOUTH);
+    
         zDialog.setLocationRelativeTo(this);
         zDialog.setVisible(true);
     }
