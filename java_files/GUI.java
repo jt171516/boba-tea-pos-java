@@ -10,15 +10,17 @@ import java.awt.*;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.HashMap;
+import java.util.Map;
 
 public class GUI extends JFrame implements ActionListener {
     static JFrame f;
 
-    
+
     private static Connection conn = null;
     //Tabbed Pane for manager menu
     private JTabbedPane tabbedPane;
-    
+
     //Live Date & Time Display
     private JLabel dateTimeLabel;
 
@@ -26,7 +28,7 @@ public class GUI extends JFrame implements ActionListener {
     static JTextField userIdField;
     static JPasswordField passwordField;
     static JButton loginButton;
-    
+
     //CASHIER PANEL
     private JPanel cashierPanel;
     private JTextField searchField;
@@ -35,14 +37,15 @@ public class GUI extends JFrame implements ActionListener {
     private JScrollPane menuItemsScroll;
     private JTextArea orderArea;
     private JButton submitOrderButton;
-    
+
     //close button
     private JButton closeButton;
 
     //MANAGER PANEL
     private JPanel managerPanel;
     private DefaultTableModel inventoryTableModel;
-    private JComboBox<String> weekComboBox;
+    private JComboBox<String> salesReportComboBox;
+    private JComboBox<String> productComboBox;
 
     //MANAGE EMPLOYEES PANEL
     private JPanel employeesPanel;
@@ -51,12 +54,13 @@ public class GUI extends JFrame implements ActionListener {
 
     // For adding a new employee
     private JTextField empNameField;
+    private JTextField empPasswordField;
     private JCheckBox managerCheckBox;
     private JButton addEmployeeButton;
     private JButton deleteEmployeeButton;
 
     private static boolean isManager;
-    
+
     public static void main(String[] args)
     {
         connectToDatabase();
@@ -111,11 +115,11 @@ public class GUI extends JFrame implements ActionListener {
         timer.start();
 
         //exit button
-        closeButton = new JButton("Close");
+        closeButton = new JButton("Logout");
         closeButton.addActionListener(this);
         add(closeButton, BorderLayout.SOUTH);
     }
-    
+
     //create dedicated initial login page
     public static void showLoginPage() {
         f = new JFrame("Login");
@@ -154,8 +158,8 @@ public class GUI extends JFrame implements ActionListener {
         fieldsPanel.add(new JLabel("Password:"), fieldsGbc);
 
         fieldsGbc.gridx = 1;
-        passwordField = new JPasswordField(30); 
-        passwordField.setPreferredSize(new Dimension(300, 30)); 
+        passwordField = new JPasswordField(30);
+        passwordField.setPreferredSize(new Dimension(300, 30));
         fieldsPanel.add(passwordField, fieldsGbc);
 
         // Login button
@@ -230,15 +234,19 @@ public class GUI extends JFrame implements ActionListener {
         loadAllMenuItemsForCashier();
 
     }
+
     private void buildManagerPanel()
     {
         managerPanel = new JPanel(new BorderLayout(10, 10));
         managerPanel.setBorder(new EmptyBorder(10, 10, 10, 10));
 
         JPanel topPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        JLabel revenueLabel = new JLabel("Revenue:");
+        JLabel revenueLabel = new JLabel("Reports:");
 
-        JComboBox<String> productComboBox = new JComboBox<>(new String[] {"All Products", "Item 1", "Item 2"});
+        productComboBox = new JComboBox<>();
+
+        //populate the productCombobBox with all of the items
+        populateProductComboBox(productComboBox);
 
         JComboBox<String> timeRangeComboBox = new JComboBox<>(new String[] {"1 Week", "1 Month", "3 Months"});
 
@@ -257,23 +265,15 @@ public class GUI extends JFrame implements ActionListener {
         topPanel.add(endOfDayButton);
 
         // === CENTER PANEL ===
-        JPanel chartPanel = new JPanel() {
-            @Override
-            protected void paintComponent(Graphics g) {
-                super.paintComponent(g);
-                // Simple placeholder line graph:
-                g.drawLine(20, getHeight() - 20, getWidth() - 20, 20);
-            }
-        };
-        chartPanel.setPreferredSize(new Dimension(800, 200));
-        chartPanel.setBorder(BorderFactory.createTitledBorder("Revenue Chart"));
+        JPanel chartPanel = new JPanel() {};
+        chartPanel.setPreferredSize(new Dimension(800, 100));
 
         // We'll put Inventory on the left, Orders on the right.
         JPanel bottomPanel = new JPanel(new GridLayout(1, 2, 10, 10));
 
         // ----- Left: Inventory -----
         //inventoryTable data
-        String[] inventoryColumns = {"ID","Product", "Stock", "Sales", "Status"};
+        String[] inventoryColumns = {"ID","Product", "Stock", "Status"};
         inventoryTableModel = new DefaultTableModel(inventoryColumns, 0)
         {
             @Override
@@ -382,15 +382,36 @@ public class GUI extends JFrame implements ActionListener {
         managerPanel.add(bottomPanel, BorderLayout.SOUTH);
 
         //sales report panel for manager panel
-        weekComboBox = new JComboBox<>(new String[]{"1", "2", "3", "4", "5"});
-        JButton salesReportButton = new JButton("Show Weekly Sales");
+        salesReportComboBox = new JComboBox<>(new String[]{"12 hours", "1 day", "2 days", "1 week", "1 month", "3 months"});
 
         //add action listener to fetch sales data for the selected week
-        salesReportButton.addActionListener(this);
+        salesReportComboBox.addActionListener(this);
+        salesReportComboBox.setActionCommand("Generate Inventory Usage and Sales Reports");
 
-        topPanel.add(new JLabel("Select Week:"));
-        topPanel.add(weekComboBox);
-        topPanel.add(salesReportButton);
+        topPanel.add(new JLabel("Generate Inventory Usage and Sales Reports for:"));
+        topPanel.add(salesReportComboBox);
+    }
+
+    private void populateProductComboBox (JComboBox<String> productComboBox)
+    {
+        productComboBox.removeAllItems();
+        productComboBox.addItem("All Products");
+
+        String sql = "SELECT name FROM item";
+
+        try (PreparedStatement stmt = conn.prepareStatement(sql))
+        {
+            ResultSet rs = stmt.executeQuery();
+            while (rs.next())
+            {
+                productComboBox.addItem(rs.getString("name"));
+            }
+        }
+        catch (SQLException e)
+        {
+            e.printStackTrace();
+            JOptionPane.showMessageDialog(null, "Failed to load products: " + e.getMessage());
+        }
     }
 
     private void buildEmployeeManagementPanel() {
@@ -412,19 +433,28 @@ public class GUI extends JFrame implements ActionListener {
         empNameField = new JTextField(15); // Increased column size for better visibility
         addPanel.add(empNameField, gbc);
 
-        // Manager checkbox
+        //Password label
         gbc.gridx = 2;
+        addPanel.add(new JLabel("Password:"), gbc);
+
+        //Password field
+        gbc.gridx = 3;
+        empPasswordField = new JTextField(15);
+        addPanel.add(empPasswordField, gbc);
+
+        // Manager checkbox
+        gbc.gridx = 4;
         managerCheckBox = new JCheckBox("Manager");
         addPanel.add(managerCheckBox, gbc);
 
         // Add Employee button
-        gbc.gridx = 3;
+        gbc.gridx = 5;
         addEmployeeButton = new JButton("Add Employee");
-        addEmployeeButton.addActionListener(e -> addEmployee());
+        addEmployeeButton.addActionListener(e -> addEmployee(empPasswordField.getText()));
         addPanel.add(addEmployeeButton, gbc);
 
-        // Table setup 
-        String[] columns = { "ID", "Name", "Manager" };
+        // Table setup
+        String[] columns = { "ID", "Name", "Password", "Manager"};
         employeesTableModel = new DefaultTableModel(columns, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
@@ -432,7 +462,7 @@ public class GUI extends JFrame implements ActionListener {
             }
             @Override
             public Class<?> getColumnClass(int columnIndex) {
-                if (columnIndex == 2) { // Manager column is Boolean
+                if (columnIndex == 3) { // Manager column is Boolean
                     return Boolean.class;
                 }
                 return super.getColumnClass(columnIndex);
@@ -445,13 +475,16 @@ public class GUI extends JFrame implements ActionListener {
                 int row = e.getFirstRow();
                 int column = e.getColumn();
                 int id = (int) employeesTableModel.getValueAt(row, 0);
-                
+
                 if (column == 1) { // Name column
                     String newName = (String) employeesTableModel.getValueAt(row, column);
                     updateEmployeeName(id, newName);
-                } else if (column == 2) { // Manager column
+                } else if (column == 3) { // Manager column
                     boolean isManager = (boolean) employeesTableModel.getValueAt(row, column);
                     updateEmployeeManagerStatus(id, isManager);
+                } else if (column == 2) {
+                    String newPassword = (String) employeesTableModel.getValueAt(row, column);
+                    updateEmployeePassword(id, newPassword);
                 }
             }
         });
@@ -489,26 +522,40 @@ public class GUI extends JFrame implements ActionListener {
             loadAllEmployees(); // Refresh data on error
         }
     }
+
+    private void updateEmployeePassword(int id, String newPassword) {
+        String sql = "UPDATE employee SET password = ? WHERE id = ?";
+        try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, newPassword);
+            pstmt.setInt(2, id);
+            pstmt.executeUpdate();
+        } catch (SQLException ex) {
+            JOptionPane.showMessageDialog(this, "Error updating password: " + ex.getMessage());
+            loadAllEmployees(); // Refresh data on error
+        }
+    }
+
     private void loadAllEmployees() {
         // Clear old data
         employeesTableModel.setRowCount(0);
 
-        String sql = "SELECT id, name, manager FROM employee";
+        String sql = "SELECT id, name, manager, password FROM employee";
         try (Statement stmt = conn.createStatement();
              ResultSet rs = stmt.executeQuery(sql)) {
             while (rs.next()) {
                 int id = rs.getInt("id");
                 String name = rs.getString("name");
+                String password = rs.getString("password");
                 boolean isManager = rs.getBoolean("manager");
 
                 // Convert boolean to string or keep it boolean
-                employeesTableModel.addRow(new Object[]{id, name, isManager});
+                employeesTableModel.addRow(new Object[]{id, name, password, isManager});
             }
         } catch (SQLException e) {
             JOptionPane.showMessageDialog(this, "Error loading employees: " + e.getMessage());
         }
     }
-    private void addEmployee() {
+    private void addEmployee(String password) {
         String name = empNameField.getText().trim();
         boolean isManager = managerCheckBox.isSelected();
 
@@ -531,11 +578,12 @@ public class GUI extends JFrame implements ActionListener {
         }
 
         // 2) Insert row with nextId
-        String sql = "INSERT INTO employee (id, name, manager) VALUES (?, ?, ?)";
+        String sql = "INSERT INTO employee (id, name, password, manager) VALUES (?, ?, ?, ?)";
         try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setInt(1, nextId);
             pstmt.setString(2, name);
-            pstmt.setBoolean(3, isManager);
+            pstmt.setString(3, password);
+            pstmt.setBoolean(4, isManager);
             pstmt.executeUpdate();
 
             // 3) refresh
@@ -543,6 +591,7 @@ public class GUI extends JFrame implements ActionListener {
 
             // 4) clear UI
             empNameField.setText("");
+            empPasswordField.setText("");
             managerCheckBox.setSelected(false);
 
             JOptionPane.showMessageDialog(this, "Employee added successfully (ID=" + nextId + ")!");
@@ -583,6 +632,7 @@ public class GUI extends JFrame implements ActionListener {
             }
         }
     }
+
     private void loadAllMenuItemsForCashier()
     {
         if (conn == null)
@@ -633,10 +683,12 @@ public class GUI extends JFrame implements ActionListener {
         String sql = "SELECT name, price FROM item WHERE name LIKE " + searchQuery;
 
         menuItemsPanel.removeAll();
-        try(PreparedStatement stmt = conn.prepareStatement(sql)){
+        try(PreparedStatement stmt = conn.prepareStatement(sql))
+        {
             ResultSet rs = stmt.executeQuery();
 
-            while(rs.next()){
+            while(rs.next())
+            {
                 String name = rs.getString("name");
                 double price = rs.getDouble("price");
 
@@ -654,39 +706,209 @@ public class GUI extends JFrame implements ActionListener {
 
     }
 
+    JPanel inventoryReportPanel = null;
+
+    private void generateInventoryUsageReport()
+    {
+        DefaultTableModel inventoryModel = new DefaultTableModel(new String[]{"Inventory Name", "Inventory Count"}, 0);
+
+        //loop through the inventoryNames and inventoryCounts to populate the table
+        for (int i = 0; i < inventoryNames.size(); i++) {
+            String inventoryName = inventoryNames.get(i);
+            int inventoryCount = inventoryCounts.get(i);
+            inventoryModel.addRow(new Object[]{inventoryName, inventoryCount});
+        }
+
+        if (inventoryReportPanel != null)
+        {
+            managerPanel.remove(inventoryReportPanel);
+        }
+
+        inventoryReportPanel = new JPanel(new BorderLayout());
+        JTable inventoryTable = new JTable(inventoryModel);
+        JScrollPane inventoryScrollPane = new JScrollPane(inventoryTable);
+
+        JButton closeButton = new JButton("X");
+        closeButton.setPreferredSize(new Dimension(50, 15));
+
+        closeButton.addActionListener(e -> {
+            managerPanel.remove(inventoryReportPanel);
+            managerPanel.revalidate();
+            managerPanel.repaint();
+        });
+
+        JPanel buttonPanel = new JPanel(new BorderLayout());
+        buttonPanel.add(closeButton, BorderLayout.EAST);
+
+        inventoryReportPanel.setBorder(BorderFactory.createTitledBorder("Inventory Usage Report"));
+        inventoryReportPanel.add(inventoryScrollPane, BorderLayout.CENTER);
+        inventoryReportPanel.add(buttonPanel, BorderLayout.NORTH);
+
+        managerPanel.add(inventoryReportPanel, BorderLayout.WEST);
+
+        managerPanel.revalidate();
+        managerPanel.repaint();
+    }
+
+    //function to calculate the total count of inventory used in the orders for a specific item
+    private int getInventoryCount(int inventoryId, int itemId, int totalQuantity)
+    {
+        int inventoryCount = 0;
+
+        //query to count how many times this specific inventory is associated with the given item
+        String fetchInventorySQL = "SELECT COUNT(*) AS inventory_count " +
+                "FROM iteminventoryjunction ii " +
+                "WHERE ii.inventoryid = ? AND ii.itemid = ?";
+
+        try (PreparedStatement fetchstmt = conn.prepareStatement(fetchInventorySQL))
+        {
+            fetchstmt.setInt(1, inventoryId);
+            fetchstmt.setInt(2, itemId);
+            ResultSet rs = fetchstmt.executeQuery();
+
+            if (rs.next())
+            {
+                inventoryCount = rs.getInt("inventory_count");
+            }
+        }
+        catch (SQLException e)
+        {
+            e.printStackTrace();
+        }
+
+        //multiply by the total quantity to get the total inventory used for all ordered items of this type
+        return inventoryCount*totalQuantity;
+    }
+
     /**
-    *@author jason agnew
-    *@param week
-    *@return none
-    *@throws sqlexception
+     *@author jason agnew
+     *@param none
+     *@return none
+     *@throws sqlexception
      */
     private JPanel salesReportPanel = null;
-    private void weeklySalesReport(int week)
+    private ArrayList<Integer> inventoryCounts = new ArrayList<>();
+    private ArrayList<String> inventoryNames = new ArrayList<>();
+
+    //fucntion to generate the sales report for a specific time period
+    private void generateSalesReport(String period)
     {
         if (conn == null)
         {
             return;
         }
 
-        //sql query to fetch the weekly order count
-        String sql = "SELECT orderCount FROM (" +
-                "SELECT COUNT(id) AS orderCount, EXTRACT(WEEK FROM timestamp) AS week " +
-                "FROM orders GROUP BY week) AS ordersInWeek " +
-                "WHERE week = ?";
+        String sql = "";
 
-        //add table header
-        DefaultTableModel model = new DefaultTableModel(new String[]{"Orders in Week " + week}, 0);
+        //queries for different periods (12 hours, 1 day, 1 week, etc.)
+        switch (period) {
+            case "12 hours":
+                sql = "SELECT i.name AS item_name, oi.itemid, COUNT(oi.itemid) AS total_quantity, " +
+                        "SUM(i.price) AS item_sales " +
+                        "FROM orders o " +
+                        "JOIN ordersitemjunction oi ON o.id = oi.orderid " +
+                        "JOIN item i ON oi.itemid = i.id " +
+                        "WHERE o.timestamp >= NOW() - INTERVAL '12 hours' " +
+                        "GROUP BY oi.itemid, i.name";
+                break;
+            case "1 day":
+                sql = "SELECT i.name AS item_name, oi.itemid, COUNT(oi.itemid) AS total_quantity, " +
+                        "SUM(i.price) AS item_sales " +
+                        "FROM orders o " +
+                        "JOIN ordersitemjunction oi ON o.id = oi.orderid " +
+                        "JOIN item i ON oi.itemid = i.id " +
+                        "WHERE o.timestamp >= NOW() - INTERVAL '1 day' " +
+                        "GROUP BY oi.itemid, i.name";
+                break;
+            case "2 days":
+                sql = "SELECT i.name AS item_name, oi.itemid, COUNT(oi.itemid) AS total_quantity, " +
+                        "SUM(i.price) AS item_sales " +
+                        "FROM orders o " +
+                        "JOIN ordersitemjunction oi ON o.id = oi.orderid " +
+                        "JOIN item i ON oi.itemid = i.id " +
+                        "WHERE o.timestamp >= NOW() - INTERVAL '2 days' " +
+                        "GROUP BY oi.itemid, i.name";
+                break;
+            case "1 week":
+                sql = "SELECT i.name AS item_name, oi.itemid, COUNT(oi.itemid) AS total_quantity, " +
+                        "SUM(i.price) AS item_sales " +
+                        "FROM orders o " +
+                        "JOIN ordersitemjunction oi ON o.id = oi.orderid " +
+                        "JOIN item i ON oi.itemid = i.id " +
+                        "WHERE o.timestamp >= NOW() - INTERVAL '1 week' " +
+                        "GROUP BY oi.itemid, i.name";
+                break;
+            case "1 month":
+                sql = "SELECT i.name AS item_name, oi.itemid, COUNT(oi.itemid) AS total_quantity, " +
+                        "SUM(i.price) AS item_sales " +
+                        "FROM orders o " +
+                        "JOIN ordersitemjunction oi ON o.id = oi.orderid " +
+                        "JOIN item i ON oi.itemid = i.id " +
+                        "WHERE o.timestamp >= NOW() - INTERVAL '1 month' " +
+                        "GROUP BY oi.itemid, i.name";
+                break;
+            case "3 months":
+                sql = "SELECT i.name AS item_name, oi.itemid, COUNT(oi.itemid) AS total_quantity, " +
+                        "SUM(i.price) AS item_sales " +
+                        "FROM orders o " +
+                        "JOIN ordersitemjunction oi ON o.id = oi.orderid " +
+                        "JOIN item i ON oi.itemid = i.id " +
+                        "WHERE o.timestamp >= NOW() - INTERVAL '3 months' " +
+                        "GROUP BY oi.itemid, i.name";
+                break;
+            default:
+                return;
+        }
 
-        try (PreparedStatement weeklyStmt = conn.prepareStatement(sql))
+        DefaultTableModel model = new DefaultTableModel(new String[]{"Item name", "Total Quantity", "Item Sales"}, 0);
+
+        try (PreparedStatement Stmt = conn.prepareStatement(sql))
         {
-            weeklyStmt.setInt(1, week);
-            ResultSet result = weeklyStmt.executeQuery();
+            ResultSet result = Stmt.executeQuery();
+
+            //to track inventory usage for each item
+            HashMap<String, Integer> inventoryMap = new HashMap<>();
 
             while (result.next())
             {
-                model.addRow(new Object[]{result.getInt("orderCount")});
+                String itemName = result.getString("item_name");
+                int itemId = result.getInt("itemid");
+                int totalQuantity = result.getInt("total_quantity");
+                double salesValue = result.getDouble("item_sales");
+                model.addRow(new Object[]{itemName, totalQuantity, "$" + salesValue});
+
+                //query to get inventory details related to this item
+                String inventorySQL = "SELECT inventory.id, inventory.name FROM inventory " +
+                        "JOIN iteminventoryjunction ii ON inventory.id = ii.inventoryid " +
+                        "WHERE ii.itemid = ?";
+
+                try (PreparedStatement invStmt = conn.prepareStatement(inventorySQL))
+                {
+                    invStmt.setInt(1, itemId);
+                    ResultSet invResult = invStmt.executeQuery();
+
+                    while (invResult.next())
+                    {
+                        String inventoryName = invResult.getString("name");
+                        int inventoryId = invResult.getInt("id");
+                        //get the inventory count
+                        int inventoryCount = getInventoryCount(inventoryId, itemId, totalQuantity);
+
+                        //update the inventory count for this inventory item
+                        inventoryMap.put(inventoryName, inventoryMap.getOrDefault(inventoryName, 0) + inventoryCount);
+                    }
+                }
             }
-            result.close();
+            inventoryCounts.clear();
+            inventoryNames.clear();
+
+            //stor the final inventory counts and names
+            for (Map.Entry<String, Integer> entry : inventoryMap.entrySet())
+            {
+                inventoryNames.add(entry.getKey());
+                inventoryCounts.add(entry.getValue());
+            }
+
         }
         catch (SQLException e)
         {
@@ -722,7 +944,7 @@ public class GUI extends JFrame implements ActionListener {
         buttonPanel.add(closeButton, BorderLayout.EAST);
 
         //sales panel layout and styling
-        salesReportPanel.setBorder(BorderFactory.createTitledBorder("Weekly Sales Report"));
+        salesReportPanel.setBorder(BorderFactory.createTitledBorder("Sales Report"));
         salesReportPanel.add(salesScrollPane, BorderLayout.CENTER);
         salesReportPanel.add(buttonPanel, BorderLayout.NORTH);
 
@@ -780,33 +1002,19 @@ public class GUI extends JFrame implements ActionListener {
         }
 
         //delete inventory item from inventory table
-
         String sql = "DELETE FROM inventory WHERE id = ? AND name = ?";
+
         try (PreparedStatement stmt = conn.prepareStatement(sql))
         {
             stmt.setInt(1, itemId);
             stmt.setString(2, name);
             stmt.executeUpdate();
         }
+
+        //if item is already in iteminventoryjunction, then pop up cannot remove warning
         catch (SQLException e)
         {
-            e.printStackTrace();
-            JOptionPane.showMessageDialog(this, "Error executing query: " + e.getMessage());
-            return;
-        }
-
-        //delete inventory item from iteminventoryjunction
-
-        String junctionSql = "DELETE FROM iteminventoryjunction WHERE inventoryid = ?";
-        try (PreparedStatement junctionStmt = conn.prepareStatement(junctionSql))
-        {
-            junctionStmt.setInt(1, itemId);
-            junctionStmt.executeUpdate();
-        }
-        catch (SQLException e)
-        {
-            e.printStackTrace();
-            JOptionPane.showMessageDialog(this, "Error executing query: " + e.getMessage());
+            JOptionPane.showMessageDialog(this, "Cannot remove inventory as items depend upon it", "Error", JOptionPane.WARNING_MESSAGE);
             return;
         }
     }
@@ -887,7 +1095,7 @@ public class GUI extends JFrame implements ActionListener {
                 int stock = result.getInt("qty");
                 String status = (stock < 10) ? "Refill Recommended" : "";
 
-                inventoryTableModel.addRow(new Object[]{invId, invName, stock, "-", status});
+                inventoryTableModel.addRow(new Object[]{invId, invName, stock, status});
             }
             result.close();
         }
@@ -899,10 +1107,101 @@ public class GUI extends JFrame implements ActionListener {
         }
     }
 
-    private void loadItemsManager(DefaultTableModel model)
+
+    //helper function which gets the id of an item based on its name
+    private int getItemId (String itemName)
     {
-        if (conn == null)
+
+        String sql = "SELECT id FROM item WHERE name = ?";
+
+        try (PreparedStatement stmt = conn.prepareStatement(sql))
         {
+            stmt.setString(1,itemName);
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next())
+            {
+                return rs.getInt("id");
+            }
+        }
+        catch (SQLException e)
+        {
+            e.printStackTrace();
+        }
+        return -1;
+    }
+
+    public boolean hasZeroStock(int itemId)
+    {
+        String checkSql = "SELECT COUNT(*) FROM iteminventoryjunction " +
+                "JOIN inventory ON iteminventoryjunction.inventoryid = inventory.id " +
+                "WHERE itemid = ? AND qty = 0";
+
+        try (PreparedStatement checkStmt = conn.prepareStatement(checkSql))
+        {
+            checkStmt.setInt(1,itemId);
+            ResultSet rs = checkStmt.executeQuery();
+
+            if (rs.next())
+            {
+                //if count > 0, at least one inventory has qty = 0
+                return rs.getInt(1) > 0;
+            }
+        }
+        catch (SQLException e)
+        {
+            e.printStackTrace();
+        }
+        return false;
+    }
+
+    private boolean reduceStock (int itemId)
+    {
+
+        String fetchInventorySQL = "SELECT inventory.id, inventory.qty FROM inventory " +
+                "JOIN iteminventoryjunction ON inventory.id = iteminventoryjunction.inventoryid " +
+                "WHERE iteminventoryjunction.itemid = ? " +
+                "ORDER BY inventory.qty DESC"; //priortize highest stock first
+
+        try (PreparedStatement fetchstmt = conn.prepareStatement(fetchInventorySQL))
+        {
+            fetchstmt.setInt(1,itemId);
+            ResultSet rs = fetchstmt.executeQuery();
+
+            while (rs.next())
+            {
+                int inventoryId = rs.getInt("id");
+                int currentQty = rs.getInt("qty");
+
+                updateStock(inventoryId);
+            }
+        }
+        catch (SQLException e)
+        {
+            e.printStackTrace();
+        }
+        return false; //no available stock in inventory
+    }
+
+    private boolean updateStock(int inventoryId)
+    {
+        String updateStockSQL = "UPDATE inventory SET qty = qty - 1 WHERE id = ?";
+
+        try (PreparedStatement updateStmt = conn.prepareStatement(updateStockSQL))
+        {
+            updateStmt.setInt(1,inventoryId);
+            int affectedRows = updateStmt.executeUpdate();
+            return affectedRows > 0; //if there are zero inventory rows without a qty > 0, then return false
+        }
+        catch (SQLException e)
+        {
+            e.printStackTrace();
+        }
+        return false;
+    }
+
+    private void loadItemsManager(DefaultTableModel model) {
+        if (conn == null) {
+
             return;
         }
 
@@ -1067,6 +1366,7 @@ public class GUI extends JFrame implements ActionListener {
                     }
 
                     loadItemsManager(model);
+                    populateProductComboBox(productComboBox);
                     dialog.dispose();
                 }
                 catch (NumberFormatException ex)
@@ -1136,27 +1436,27 @@ public class GUI extends JFrame implements ActionListener {
         JButton submitButton = new JButton("Submit");
         submitButton.addActionListener( e ->
         {
-           for (int row = 0; row < itemInventoryConnectionTable.getRowCount(); row++)
-           {
-               boolean isSelected = (boolean) itemInventoryModel.getValueAt(row, 2);
-               if (isSelected)
-               {
-                   int inventoryID = (Integer) itemInventoryModel.getValueAt(row, 0);
+            for (int row = 0; row < itemInventoryConnectionTable.getRowCount(); row++)
+            {
+                boolean isSelected = (boolean) itemInventoryModel.getValueAt(row, 2);
+                if (isSelected)
+                {
+                    int inventoryID = (Integer) itemInventoryModel.getValueAt(row, 0);
 
-                   String insertItemInventoryJunction = "INSERT INTO itemInventoryJunction (itemID, inventoryID) VALUES (?, ?)";
-                   try (PreparedStatement pstmt = conn.prepareStatement(insertItemInventoryJunction))
-                   {
-                       pstmt.setInt(1, newItemID);
-                       pstmt.setInt(2, inventoryID);
-                       pstmt.executeUpdate();
-                   }
-                   catch (SQLException ex)
-                   {
-                       JOptionPane.showMessageDialog(this, "Error inserting into item/inventory junction table: " + ex.getMessage());
-                   }
-               }
-           }
-           dialog.dispose();
+                    String insertItemInventoryJunction = "INSERT INTO itemInventoryJunction (itemID, inventoryID) VALUES (?, ?)";
+                    try (PreparedStatement pstmt = conn.prepareStatement(insertItemInventoryJunction))
+                    {
+                        pstmt.setInt(1, newItemID);
+                        pstmt.setInt(2, inventoryID);
+                        pstmt.executeUpdate();
+                    }
+                    catch (SQLException ex)
+                    {
+                        JOptionPane.showMessageDialog(this, "Error inserting into item/inventory junction table: " + ex.getMessage());
+                    }
+                }
+            }
+            dialog.dispose();
         });
 
         buttonPanel.add(addInventoryButton);
@@ -1215,29 +1515,29 @@ public class GUI extends JFrame implements ActionListener {
         return exists;
     }
 
-    private void xReport() 
+    private void xReport()
     {
-        if (conn == null) 
+        if (conn == null)
         {
             return;
         }
-    
-        String sql = 
-            "SELECT " +
-            "   EXTRACT(HOUR FROM o.timestamp) AS hour, " +
-            "   COUNT(DISTINCT o.id) AS total_orders, " +
-            "   COALESCE(SUM(o.totalprice), 0) AS total_revenue, " +
-            "   COUNT(oj.itemid) AS total_items " +
-            "FROM orders o " +
-            "LEFT JOIN ordersitemjunction oj ON o.id = oj.orderid " +
-            "WHERE DATE(o.timestamp) = CURRENT_DATE " +
-            "GROUP BY hour " +
-            "ORDER BY hour;";
-    
+
+        String sql =
+                "SELECT " +
+                        "   EXTRACT(HOUR FROM o.timestamp) AS hour, " +
+                        "   COUNT(DISTINCT o.id) AS total_orders, " +
+                        "   COALESCE(SUM(o.totalprice), 0) AS total_revenue, " +
+                        "   COUNT(oj.itemid) AS total_items " +
+                        "FROM orders o " +
+                        "LEFT JOIN ordersitemjunction oj ON o.id = oj.orderid " +
+                        "WHERE DATE(o.timestamp) = CURRENT_DATE " +
+                        "GROUP BY hour " +
+                        "ORDER BY hour;";
+
         String[] stringStuff = new String[]{"Hour", "Total Orders", "Total Revenue", "Total Items"};
         DefaultTableModel model = new DefaultTableModel(stringStuff, 0);
-    
-        try (PreparedStatement st = conn.prepareStatement(sql)) 
+
+        try (PreparedStatement st = conn.prepareStatement(sql))
         {
             ResultSet rst = st.executeQuery();
             while (rst.next())
@@ -1250,13 +1550,13 @@ public class GUI extends JFrame implements ActionListener {
                 model.addRow(lmao);
             }
             rst.close();
-        } 
-        catch (SQLException e) 
+        }
+        catch (SQLException e)
         {
             JOptionPane.showMessageDialog(this, "x-report failed sad" + e.getMessage());
             return;
         }
-    
+
         JDialog dialog = new JDialog(this, "x-report sales per hour for today:");
         dialog.setSize(600, 400);
         JTable table = new JTable(model);
@@ -1264,21 +1564,42 @@ public class GUI extends JFrame implements ActionListener {
         dialog.setLocationRelativeTo(this);
         dialog.setVisible(true);
     }
+
+    private int getItemIdByName(String itemName) throws SQLException
+    {
+        String sql = "SELECT id FROM item WHERE name = ? LIMIT 1";
+        try (PreparedStatement epicStatement = conn.prepareStatement(sql))
+        {
+            epicStatement.setString(1, itemName);
+            try (ResultSet rst = epicStatement.executeQuery())
+            {
+                if (rst.next())
+                {
+                    return rst.getInt("id");
+                }
+                else
+                {
+                    return -1; //error
+                }
+            }
+        }
+    }
+
     private void showZReportDialog() {
         if (conn == null) {
             return;
         }
-    
+
         double totalSales = 0.0;
         int totalOrders = 0;
-    
-        String sql = 
-            "SELECT " +
-            "  COALESCE(SUM(o.totalprice), 0) AS total_sales, " +
-            "  COUNT(o.id) AS total_orders " +
-            "FROM orders o " +
-            "WHERE DATE(o.timestamp) = CURRENT_DATE";
-    
+
+        String sql =
+                "SELECT " +
+                        "  COALESCE(SUM(o.totalprice), 0) AS total_sales, " +
+                        "  COUNT(o.id) AS total_orders " +
+                        "FROM orders o " +
+                        "WHERE DATE(o.timestamp) = CURRENT_DATE";
+
         try (PreparedStatement stmt = conn.prepareStatement(sql)) {
             ResultSet rs = stmt.executeQuery();
             if (rs.next()) {
@@ -1290,105 +1611,55 @@ public class GUI extends JFrame implements ActionListener {
             JOptionPane.showMessageDialog(this, "Z-Report query error: " + e.getMessage());
             return;
         }
-    
+
         JDialog zDialog = new JDialog(this, "Z-Report – End of Day", true);
         zDialog.setSize(400, 300);
         zDialog.setLayout(new BorderLayout());
-    
+
         String reportText = String.format(
-            "End of Day Totals (Today):\n\n" +
-            "Total Sales: $%.2f\n" +
-            "Total Orders: %d\n\n" +
-            "Press 'Next Day' to reset daily data and logout.",
-            totalSales, totalOrders
+                "End of Day Totals (Today):\n\n" +
+                        "Total Sales: $%.2f\n" +
+                        "Total Orders: %d\n\n" +
+                        "Press 'Next Day' to logout.",
+                totalSales, totalOrders
         );
         JTextArea reportArea = new JTextArea(reportText);
         reportArea.setEditable(false);
         reportArea.setMargin(new Insets(10,10,10,10));
-    
+
         zDialog.add(reportArea, BorderLayout.CENTER);
-    
+
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         JButton nextDayButton = new JButton("Next Day");
         JButton cancelButton = new JButton("Cancel");
-    
+
         buttonPanel.add(nextDayButton);
         buttonPanel.add(cancelButton);
-    
+
         nextDayButton.addActionListener(evt -> {
             // Prompt "Are you sure?"
             int confirm = JOptionPane.showConfirmDialog(
-                zDialog,
-                "Reset and Logout?\n" + 
-                "This will clear today's orders permanently and log you out.",
-                "Confirm Next Day",
-                JOptionPane.YES_NO_OPTION
+                    zDialog,
+                    "Logout?\n" +
+                            "This will log you out.",
+                    "Confirm Next Day",
+                    JOptionPane.YES_NO_OPTION
             );
             if (confirm == JOptionPane.YES_OPTION) {
-                // 1) Reset the data
-                resetDailyTotals();
-                // 2) Logout
+                // Logout
                 zDialog.dispose();  // close the Z-report dialog
-                showLoginPage();           // or directly do "dispose(); showLoginPage();" 
+                dispose();
+                showLoginPage();           // or directly do "dispose(); showLoginPage();"
             }
         });
-    
+
         cancelButton.addActionListener(evt -> zDialog.dispose());
-    
+
         zDialog.add(buttonPanel, BorderLayout.SOUTH);
         zDialog.setLocationRelativeTo(this);
         zDialog.setVisible(true);
     }
-    private void resetDailyTotals() {
-        try {
-            String deleteJunction = 
-                "DELETE FROM ordersitemjunction " +
-                "USING orders " +
-                "WHERE ordersitemjunction.orderid = orders.id " +
-                "  AND DATE(orders.timestamp) = CURRENT_DATE";
-            try (PreparedStatement pstmt = conn.prepareStatement(deleteJunction)) {
-                pstmt.executeUpdate();
-            }
 
-            String deleteOrders = "DELETE FROM orders WHERE DATE(timestamp) = CURRENT_DATE";
-            try (PreparedStatement pstmt = conn.prepareStatement(deleteOrders)) {
-                pstmt.executeUpdate();
-            }
-            String resetItemSales = "UPDATE item SET sales = 0";
-            try (PreparedStatement pstmt = conn.prepareStatement(resetItemSales)) {
-                pstmt.executeUpdate();
-            }
-    
-            System.out.println("Daily totals cleared. Next day is now ready.");
-        } catch (SQLException e) {
-            JOptionPane.showMessageDialog(this, 
-                "Error resetting daily totals: " + e.getMessage(),
-                "Z-Report Error",
-                JOptionPane.ERROR_MESSAGE
-            );
-        }
-    }
-
-    private int getItemIdByName(String itemName) throws SQLException 
-    {
-        String sql = "SELECT id FROM item WHERE name = ? LIMIT 1";
-        try (PreparedStatement epicStatement = conn.prepareStatement(sql)) 
-        {
-            epicStatement.setString(1, itemName);
-            try (ResultSet rst = epicStatement.executeQuery()) 
-            {
-                if (rst.next()) 
-                {
-                    return rst.getInt("id");
-                } 
-                else 
-                {
-                    return -1; //error
-                }
-            }
-        }
-    }
-    
     //action listener
     @Override
     public void actionPerformed(ActionEvent e)
@@ -1408,10 +1679,17 @@ public class GUI extends JFrame implements ActionListener {
                     ResultSet result = stmt.executeQuery(sqlStatement);
 
                     if (result.next()) {
+                        String locPassword = result.getString("password");
                         boolean isManager = result.getBoolean("manager");
-                        showMainPage(isManager);
+
+                        String inputPassword = new String(passwordField.getPassword());
+                        if (locPassword.equals(inputPassword)){
+                            showMainPage(isManager);
+                        } else{
+                            JOptionPane.showMessageDialog(null,"Invalid password.");
+                        }
                     } else {
-                        JOptionPane.showMessageDialog(null, "Invalid user ID.");
+                        JOptionPane.showMessageDialog(null, "Invalid username.");
                     }
                 } catch (Exception ex) {
                     ex.printStackTrace();
@@ -1463,12 +1741,29 @@ public class GUI extends JFrame implements ActionListener {
                             }
                             orderItems.append(itemName);
 
+                            //get item id from itemName in item table
+                            int itemId = getItemId(itemName);
+
+                            //check if any inventory needed for the item has a qty of zero
+                            if (hasZeroStock(itemId))
+                            {
+                                JOptionPane.showMessageDialog(this, "Order cannot be created! " + itemName + " has an inventory with 0 stock");
+                                orderArea.setText("");
+                                return;
+                            }
+
+                            //reduce stock from inventory
+                            reduceStock(itemId);
+
+                            populateInventoryTable(inventoryTableModel);
+
                             //store item in name in list for junc ins
                             itemNames.add(itemName);
+
                         }
                     }
 
-                    if (itemNames.isEmpty()) 
+                    if (itemNames.isEmpty())
                     {
                         JOptionPane.showMessageDialog(this, "no valid items in order sad");
                         break;
@@ -1480,43 +1775,43 @@ public class GUI extends JFrame implements ActionListener {
                         PreparedStatement pStatement = conn.prepareStatement(sql);
                         pStatement.setString(1, orderItems.toString());
                         pStatement.setDouble(2, totalPrice);
-                        try (ResultSet rs = pStatement.executeQuery()) 
+                        try (ResultSet rs = pStatement.executeQuery())
                         {
-                            if (rs.next()) 
+                            if (rs.next())
                             {
                                 newOrderId = rs.getInt("id");
                             }
                         }
-                        } 
-                        catch (SQLException ex) 
-                        {
-                            JOptionPane.showMessageDialog(this, "error insert order sad: " + ex.getMessage());
-                            break;
-                        }
+                    }
+                    catch (SQLException ex)
+                    {
+                        JOptionPane.showMessageDialog(this, "error insert order sad: " + ex.getMessage());
+                        break;
+                    }
                     catch(Exception e1)
                     {
                         JOptionPane.showMessageDialog(this, "submitting order failed sad " + e1.getMessage());
                     }
-                    if (newOrderId == -1) 
+                    if (newOrderId == -1)
                     {
                         JOptionPane.showMessageDialog(this, "fail to get new order id sad");
                         break;
                     }
-                    for (String itemName : itemNames) 
+                    for (String itemName : itemNames)
                     {
-                        try 
+                        try
                         {
                             int itemId = getItemIdByName(itemName);
-                            if (itemId == -1) 
+                            if (itemId == -1)
                             {
                                 JOptionPane.showMessageDialog(this, "no item found with name: " + itemName);
                                 continue;
                             }
-                
-                            String junctionSql = 
-                                "INSERT INTO ordersitemjunction (orderid, itemid) " +
-                                "VALUES (?, ?)";
-                            try (PreparedStatement junctionStmt = conn.prepareStatement(junctionSql)) 
+
+                            String junctionSql =
+                                    "INSERT INTO ordersitemjunction (orderid, itemid) " +
+                                            "VALUES (?, ?)";
+                            try (PreparedStatement junctionStmt = conn.prepareStatement(junctionSql))
                             {
                                 junctionStmt.setInt(1, newOrderId);
                                 junctionStmt.setInt(2, itemId);
@@ -1524,24 +1819,28 @@ public class GUI extends JFrame implements ActionListener {
 
                                 //update sales
                                 String updateSalesSql = "UPDATE item SET sales = sales + 1 WHERE id = ?";
-                                try (PreparedStatement updateStmt = conn.prepareStatement(updateSalesSql)) 
+                                try (PreparedStatement updateStmt = conn.prepareStatement(updateSalesSql))
                                 {
                                     updateStmt.setInt(1, itemId);
                                     updateStmt.executeUpdate();
                                 }
                             }
-                        } 
-                        catch (SQLException ex) 
+                        }
+                        catch (SQLException ex)
                         {
-                            JOptionPane.showMessageDialog(this, "error insert item: " + itemName 
-                                  + ": into ordersitemjunction: " + ex.getMessage());
+                            JOptionPane.showMessageDialog(this, "error insert item: " + itemName
+                                    + ": into ordersitemjunction: " + ex.getMessage());
                         }
                     }
-                    JOptionPane.showMessageDialog(this, 
-                        "order submitted!!!!!\nitems: " + orderItems.toString() + "\total price: $" + totalPrice);
+                    JOptionPane.showMessageDialog(this,
+                            "order submitted!!!!!\nitems: " + orderItems.toString() + "\total price: $" + totalPrice);
                     orderArea.setText("");
                 }
-                    break;
+                break;
+            case "Logout":
+                dispose();
+                showLoginPage();
+                break;
             case "updateDateTime":
                 updateDateTime();
                 break;
@@ -1571,9 +1870,10 @@ public class GUI extends JFrame implements ActionListener {
                     populateInventoryTable(inventoryTableModel);
                 }
                 break;
-            case "Show Weekly Sales":
-                int selectedWeek = Integer.parseInt((String) weekComboBox.getSelectedItem());
-                weeklySalesReport(selectedWeek);
+            case "Generate Inventory Usage and Sales Reports":
+                String selectedPeriod = (String) salesReportComboBox.getSelectedItem();
+                generateSalesReport(selectedPeriod);
+                generateInventoryUsageReport();
                 break;
             case "X-Report":
                 xReport();
