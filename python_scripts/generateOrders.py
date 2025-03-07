@@ -65,22 +65,19 @@ def generate_sharetea_data():
             
             # Randomly choose an item
             item_id, calories, base_price, sales, item_name = random.choice(items)
-            
-            # 85% chance small order (1–2), 15% chance large group (3–10)
-            # if random.random() < 0.85:
-            #     quantity = random.randint(1, 2)
-            # else:
-            #     quantity = random.randint(3, 10)
 
             quantity = 1
             
             order_total = base_price * quantity  # integer
+
+            payment_method = random.choices(["card", "cash"], weights=[90, 10])[0]
             
             all_orders.append({
                 "id": current_order_id,
                 "name": item_name,
                 "totalprice": order_total,
-                "date": order_datetime
+                "date": order_datetime,
+                "payment": payment_method,
             })
 
             all_junction_entries.append({
@@ -98,13 +95,14 @@ def write_csv_file(filename, orders):
     """
     with open(filename, mode='w', newline='', encoding='utf-8') as f:
         writer = csv.writer(f)
-        writer.writerow(["id", "name", "totalprice", "date"])
+        writer.writerow(["id", "name", "totalprice", "date", "payment"])
         for o in orders:
             writer.writerow([
                 o["id"],
                 o["name"],
                 o["totalprice"],
-                o["date"].strftime("%Y-%m-%d %H:%M:%S")
+                o["date"].strftime("%Y-%m-%d %H:%M:%S"),
+                o["payment"],
             ])
 
 def write_junction_csv_file(filename, item_order_junction):
