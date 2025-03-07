@@ -259,6 +259,11 @@ public class GUI extends JFrame implements ActionListener {
         xReportButton.addActionListener(this);
         topPanel.add(xReportButton);
 
+        //add button for z report
+        JButton endOfDayButton = new JButton("End of Day (Z-Report)");
+        endOfDayButton.addActionListener(e -> showZReportDialog());
+        topPanel.add(endOfDayButton);
+
         // === CENTER PANEL ===
         JPanel chartPanel = new JPanel() {};
         chartPanel.setPreferredSize(new Dimension(800, 100));
@@ -1578,6 +1583,81 @@ public class GUI extends JFrame implements ActionListener {
                 }
             }
         }
+    }
+
+    private void showZReportDialog() {
+        if (conn == null) {
+            return;
+        }
+
+        double totalSales = 0.0;
+        int totalOrders = 0;
+
+        String sql =
+                "SELECT " +
+                        "  COALESCE(SUM(o.totalprice), 0) AS total_sales, " +
+                        "  COUNT(o.id) AS total_orders " +
+                        "FROM orders o " +
+                        "WHERE DATE(o.timestamp) = CURRENT_DATE";
+
+        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                totalSales = rs.getDouble("total_sales");
+                totalOrders = rs.getInt("total_orders");
+            }
+            rs.close();
+        } catch (SQLException e) {
+            JOptionPane.showMessageDialog(this, "Z-Report query error: " + e.getMessage());
+            return;
+        }
+
+        JDialog zDialog = new JDialog(this, "Z-Report – End of Day", true);
+        zDialog.setSize(400, 300);
+        zDialog.setLayout(new BorderLayout());
+
+        String reportText = String.format(
+                "End of Day Totals (Today):\n\n" +
+                        "Total Sales: $%.2f\n" +
+                        "Total Orders: %d\n\n" +
+                        "Press 'Next Day' to logout.",
+                totalSales, totalOrders
+        );
+        JTextArea reportArea = new JTextArea(reportText);
+        reportArea.setEditable(false);
+        reportArea.setMargin(new Insets(10,10,10,10));
+
+        zDialog.add(reportArea, BorderLayout.CENTER);
+
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        JButton nextDayButton = new JButton("Next Day");
+        JButton cancelButton = new JButton("Cancel");
+
+        buttonPanel.add(nextDayButton);
+        buttonPanel.add(cancelButton);
+
+        nextDayButton.addActionListener(evt -> {
+            // Prompt "Are you sure?"
+            int confirm = JOptionPane.showConfirmDialog(
+                    zDialog,
+                    "Logout?\n" +
+                            "This will log you out.",
+                    "Confirm Next Day",
+                    JOptionPane.YES_NO_OPTION
+            );
+            if (confirm == JOptionPane.YES_OPTION) {
+                // Logout
+                zDialog.dispose();  // close the Z-report dialog
+                dispose();
+                showLoginPage();           // or directly do "dispose(); showLoginPage();"
+            }
+        });
+
+        cancelButton.addActionListener(evt -> zDialog.dispose());
+
+        zDialog.add(buttonPanel, BorderLayout.SOUTH);
+        zDialog.setLocationRelativeTo(this);
+        zDialog.setVisible(true);
     }
 
     //action listener
