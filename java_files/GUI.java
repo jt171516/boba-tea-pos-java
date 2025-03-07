@@ -1045,6 +1045,12 @@ public class GUI extends JFrame implements ActionListener {
         }
     }
 
+    /**
+     * Removes an item and its associated inventory items from the database
+     * @author jeremy tran
+     * @param id the id of the item to be removed
+     * @throws SQLException if there is a problem running the SQL query
+     */
     private void removeItem(int id)
     {
         if (conn == null)
@@ -1204,6 +1210,12 @@ public class GUI extends JFrame implements ActionListener {
         return false;
     }
 
+    /**
+     * Loads the table model for the items table in the manager panel
+     * @author jeremy tran
+     * @param model the table model of the JTable of items on the manager page
+     * @throws SQLException if there is a problem running the SQL query
+     */
     private void loadItemsManager(DefaultTableModel model) {
         if (conn == null) {
 
@@ -1242,6 +1254,12 @@ public class GUI extends JFrame implements ActionListener {
         }
     }
 
+    /**
+     * Creates the items panel in the manager section to add, edit, or remove items
+     * @author jeremy tran
+     * @param model the table model of the JTable of items on the manager page
+     * @throws SQLException if there is a problem running the SQL query
+     */
     private void itemManagement(DefaultTableModel model)
     {
         JDialog dialog = new JDialog(this, "Manage Items");
@@ -1394,6 +1412,12 @@ public class GUI extends JFrame implements ActionListener {
         dialog.setVisible(true);
     }
 
+    /**
+     * Creates the dialog for selecting which inventory items are associate with newly added items
+     * @author jeremy tran
+     * @param newItemID the id of the item that was just added to the database
+     * @throws SQLException if there is a problem running the SQL query
+     */
     private void itemInventoryJunctionDialog(int newItemID)
     {
         JDialog dialog = new JDialog(this, "Inventory Items");
@@ -1473,6 +1497,12 @@ public class GUI extends JFrame implements ActionListener {
 
     }
 
+    /**
+     * Loads the table model for the inventory selection table after adding a new item
+     * @author jeremy tran
+     * @param itemInventoryModel table model of the inventory selection table
+     * @throws SQLException if there is a problem running the SQL query
+     */
     private void loadItemInventoryModel(DefaultTableModel itemInventoryModel)
     {
         itemInventoryModel.setRowCount(0);
@@ -1496,6 +1526,13 @@ public class GUI extends JFrame implements ActionListener {
         }
     }
 
+    /**
+     * Check if the itemID already exists or not
+     * @author jeremy tran
+     * @param itemID id of the current item
+     * @return true if the item exists and false if the item does not exist
+     * @throws SQLException if there is a problem running the SQL query
+     */
     private boolean checkItemID(int itemID)
     {
         boolean exists = false;
