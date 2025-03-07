@@ -1520,50 +1520,49 @@ public class GUI extends JFrame implements ActionListener {
         return exists;
     }
 
-    private void xReport()
-    {
-        if (conn == null)
-        {
+    private void xReport() {
+        if (conn == null) {
             return;
         }
-
+    
         String sql =
-                "SELECT " +
-                        "   EXTRACT(HOUR FROM o.timestamp) AS hour, " +
-                        "   COUNT(DISTINCT o.id) AS total_orders, " +
-                        "   COALESCE(SUM(o.totalprice), 0) AS total_revenue, " +
-                        "   COUNT(oj.itemid) AS total_items " +
-                        "FROM orders o " +
-                        "LEFT JOIN ordersitemjunction oj ON o.id = oj.orderid " +
-                        "WHERE DATE(o.timestamp) = CURRENT_DATE " +
-                        "GROUP BY hour " +
-                        "ORDER BY hour;";
-
-        String[] stringStuff = new String[]{"Hour", "Total Orders", "Total Revenue", "Total Items"};
-        DefaultTableModel model = new DefaultTableModel(stringStuff, 0);
-
-        try (PreparedStatement st = conn.prepareStatement(sql))
-        {
+            "SELECT " +
+            "   EXTRACT(HOUR FROM o.timestamp) AS hour, " +
+            "   COUNT(DISTINCT o.id) AS total_orders, " +
+            "   COALESCE(SUM(CASE WHEN o.totalprice > 0 THEN o.totalprice ELSE 0 END), 0) AS total_sales, " +
+            "   COALESCE(SUM(CASE WHEN o.totalprice < 0 THEN -o.totalprice ELSE 0 END), 0) AS total_returns, " +
+            "   COUNT(oj.itemid) AS total_items, " +
+            "   COUNT(CASE WHEN o.payment = 'cash' THEN 1 END) AS cash_payments, " +
+            "   COUNT(CASE WHEN o.payment = 'card' THEN 1 END) AS card_payments " +
+            "FROM orders o " +
+            "LEFT JOIN ordersitemjunction oj ON o.id = oj.orderid " +
+            "WHERE DATE(o.timestamp) = CURRENT_DATE " +
+            "GROUP BY hour " +
+            "ORDER BY hour;";
+    
+        String[] columns = {"Hour", "Total Orders", "Sales", "Returns", "Total Items", "Cash", "Card"};
+        DefaultTableModel model = new DefaultTableModel(columns, 0);
+    
+        try (PreparedStatement st = conn.prepareStatement(sql)) {
             ResultSet rst = st.executeQuery();
-            while (rst.next())
-            {
+            while (rst.next()) {
                 int hour = rst.getInt("hour");
                 int totalOrders = rst.getInt("total_orders");
-                int totalRevenue = rst.getInt("total_revenue");
+                int totalSales = rst.getInt("total_sales");
+                int totalReturns = rst.getInt("total_returns");
                 int totalItems = rst.getInt("total_items");
-                Object[] lmao = new Object[]{hour, totalOrders, totalRevenue, totalItems};
-                model.addRow(lmao);
+                int cash = rst.getInt("cash_payments");
+                int card = rst.getInt("card_payments");
+                model.addRow(new Object[]{hour, totalOrders, totalSales, totalReturns, totalItems, cash, card});
             }
             rst.close();
-        }
-        catch (SQLException e)
-        {
-            JOptionPane.showMessageDialog(this, "x-report failed sad" + e.getMessage());
+        } catch (SQLException e) {
+            JOptionPane.showMessageDialog(this, "X-report failed: " + e.getMessage());
             return;
         }
-
-        JDialog dialog = new JDialog(this, "x-report sales per hour for today:");
-        dialog.setSize(600, 400);
+    
+        JDialog dialog = new JDialog(this, "X-Report: Hourly Sales Summary");
+        dialog.setSize(800, 400);
         JTable table = new JTable(model);
         dialog.add(new JScrollPane(table));
         dialog.setLocationRelativeTo(this);
