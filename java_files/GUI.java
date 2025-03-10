@@ -13,6 +13,10 @@ import java.util.Calendar;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * GUI class of interface for POS system
+ * @author michael ades, jason agnew, casey ear, jeremy tran, william xu
+ */
 public class GUI extends JFrame implements ActionListener {
     static JFrame f;
 
@@ -240,6 +244,11 @@ public class GUI extends JFrame implements ActionListener {
 
     }
 
+    /**
+     * Creates the manager page of the POS system
+     * @author jason agnew, casey ear, jeremy tran, william xu
+     * @throws SQLException if there is a problem running the SQL query
+     */
     private void buildManagerPanel()
     {
         managerPanel = new JPanel(new BorderLayout(10, 10));
@@ -785,16 +794,15 @@ public class GUI extends JFrame implements ActionListener {
         return inventoryCount*totalQuantity;
     }
 
-    /**
-     *@author jason agnew
-     *@param none
-     *@return none
-     *@throws sqlexception
-     */
     private JPanel salesReportPanel = null;
     private ArrayList<Integer> inventoryCounts = new ArrayList<>();
     private ArrayList<String> inventoryNames = new ArrayList<>();
 
+    /**
+     * Creates sales report given a specific time period
+     * @author jason agnew, casey ear
+     * @throws SQLException if there is a problem running the SQL query
+     */
     //fucntion to generate the sales report for a specific time period
     private void generateSalesReport(String period)
     {
@@ -961,6 +969,14 @@ public class GUI extends JFrame implements ActionListener {
         managerPanel.repaint();
     }
 
+    /**
+     * Inserts inventory item into inventory table in database
+     * @author jason agnew
+     * @param id id of inventory item to be added
+     * @param name name of inventory item to be added
+     * @param qty quantity of inventory item to be added
+     * @throws SQLException if there is a problem running the SQL query
+     */
     public void addInventoryItem(int id, String name, int qty)
     {
         if (conn == null) {
@@ -999,6 +1015,13 @@ public class GUI extends JFrame implements ActionListener {
         }
     }
 
+    /**
+     * Removes inventory items from the database
+     * @author jason agnew
+     * @param itemId the id of the inventory item to be removed
+     * @param name name of the inventory item to be removed
+     * @throws SQLException if there is a problem running the SQL query
+     */
     private void removeInventoryItem(int itemId, String name)
     {
         if (conn == null)
@@ -1024,6 +1047,13 @@ public class GUI extends JFrame implements ActionListener {
         }
     }
 
+    /**
+     * Updates quantity of selected inventory item in database
+     * @author jason agnew
+     * @param qty updated quantity of inventory item
+     * @param invName name of the inventory item to be updated
+     * @throws SQLException if there is a problem running the SQL query
+     */
     private void updateInventoryQuantity(int qty, String invName)
     {
         if (conn == null)
@@ -1083,6 +1113,12 @@ public class GUI extends JFrame implements ActionListener {
         }
     }
 
+    /**
+     * Populates table model of inventory table on manager page
+     * @author jason agnew
+     * @param inventoryTableModel table model of inventory table on manager page
+     * @throws SQLException if there is a problem running the SQL query
+     */
     public void populateInventoryTable(DefaultTableModel inventoryTableModel)
     {
         if (conn == null)
@@ -1719,6 +1755,12 @@ public class GUI extends JFrame implements ActionListener {
         zDialog.setVisible(true);
     }
 
+    /**
+     * Adds order to orders table and orders/item junction table in database
+     * @author michael ades, jeremy tran
+     * @param paymentMethod payment method of customer
+     * @throws SQLException if there is a problem running the SQL query
+     */
     private void submitOrder(String paymentMethod)
     {
         String orderText = orderArea.getText().trim();
@@ -1853,6 +1895,12 @@ public class GUI extends JFrame implements ActionListener {
         }
     }
 
+    /**
+     * Handles action events triggered through user interaction
+     * @author michael ades, jason agnew, casey ear, jeremy tran
+     * @param e Action Event object containing event details
+     * @throws SQLException if there is a problem running the SQL query
+     */
     //action listener
     @Override
     public void actionPerformed(ActionEvent e)
